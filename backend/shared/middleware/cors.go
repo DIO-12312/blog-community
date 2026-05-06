@@ -2,7 +2,7 @@ package middleware
 
 import "github.com/gin-gonic/gin"
 
-func CORS(c *gin.Context) gin.HandlerFunc {
+func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//"*"代表接受任意的前端页面访问
 		//可以换成该项目的前端源"http://localhost:5173"
