@@ -58,7 +58,7 @@ func LoadConfigFromEnv() Config {
 		Host:     GetEnv("MYSQL_HOST", "127.0.0.1"),
 		Port:     GetEnv("MYSQL_PORT", "3306"),
 		User:     GetEnv("MYSQL_USER", "root"),
-		Password: GetEnv("MYSQL_PASSWORD", "root"),
+		Password: GetEnv("MYSQL_PASSWORD", "123456"),
 		DBName:   GetEnv("MYSQL_DATABASE", "blog"),
 	}
 }
