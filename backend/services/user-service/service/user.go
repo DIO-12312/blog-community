@@ -3,8 +3,11 @@ package service
 import (
 	"blog-community/shared/models"
 	"errors"
+	"time"
 
-	"github.com/blog-community/user-service/repository"
+	"blog-community/user-service/repository"
+
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -63,8 +66,29 @@ func (s *UserService) Login(username, password string) (string, error) {
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return "", errors.New("用户名或密码错误")
 	}
-	token := jwt
+
+	//生成JWT
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"roles":   []string{"user"},
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	}).SignedString(s.jwtSecret)
+	if err != nil {
+		return "", errors.New("生成token失败")
+	}
+	return token, nil
+}
+
+// 获取用户信息
+func (s *UserService) GetUserInfo(id string) (*models.User, error) {
+	user, ok := s.repo.GetUserByID(id)
+	if !ok {
+		return nil, errors.New("用户不存在")
+	}
 	return user, nil
 }
 
-//
+// 更新用户信息
+func (s *UserService) UpdateUserInfo(id string, updates map[string]interface{}) error {
+	return nil
+}
