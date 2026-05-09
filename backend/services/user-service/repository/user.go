@@ -26,7 +26,8 @@ func (r *UserRepository) CreateUser(user *models.User) error {
 // GetByID 根据ID查询用户
 func (r *UserRepository) GetUserByID(id string) (*models.User, bool) {
 	var user models.User
-	err := r.db.Where("id = ?", id).First(&user, id).Error
+
+	err := r.db.Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, false
 	}

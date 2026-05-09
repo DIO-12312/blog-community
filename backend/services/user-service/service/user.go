@@ -80,7 +80,8 @@ func (s *UserService) Login(username, password string) (string, error) {
 }
 
 // 获取用户信息
-func (s *UserService) GetUserInfo(id string) (*models.User, error) {
+func (s *UserService) GetProfile(id string) (*models.User, error) {
+
 	user, ok := s.repo.GetUserByID(id)
 	if !ok {
 		return nil, errors.New("用户不存在")
@@ -89,6 +90,9 @@ func (s *UserService) GetUserInfo(id string) (*models.User, error) {
 }
 
 // 更新用户信息
-func (s *UserService) UpdateUserInfo(id string, updates map[string]interface{}) error {
+func (s *UserService) UpdateProfile(id string, updates map[string]interface{}) error {
+	if err := s.repo.UpdateUsers(id, updates); err != nil {
+		return errors.New("更新用户信息失败")
+	}
 	return nil
 }
