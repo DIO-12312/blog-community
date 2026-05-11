@@ -2,6 +2,7 @@ package repository
 
 import (
 	"blog-community/shared/models"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -57,4 +58,92 @@ func (r *UserRepository) GetUserByEmail(email string) (*models.User, bool) {
 // UpdateUsers 更新用户信息
 func (r *UserRepository) UpdateUsers(id string, updates map[string]interface{}) error {
 	return r.db.Model(&models.User{}).Where("id = ?", id).Updates(updates).Error
+}
+
+//Follow 关注用户
+
+func (r *UserRepository) Follow(followerID, followingID string) error {
+	follow := &models.Follow{
+		FollowerID:  followerID,
+		FollowingID: followingID,
+	}
+	return r.db.Create(follow).Error
+}
+
+// UnFollow 取关用户
+func (r *UserRepository) UnFollow(followerID, followingID string) error {
+	return r.db.Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&models.Follow{}).Error
+}
+
+// IsFollowing 查看是否关注
+func (r *UserRepository) IsFollowing(followerID, followingID string) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Follow{}).Where("follower_id = ? AND following_id = ?", followerID, followingID).Count(&count).Error
+	fmt.Println("当前计数为:%v", count)
+	return count > 0, err
+}
+
+// GetFollowersCount 获取用户的粉丝数
+func (r *UserRepository) GetFollowersCount(userID string) (int64, error) {
+	var total int64
+	err := r.db.Model(&models.Follow{}).Where("following_id = ?", userID).Count(&total).Error
+	return total, err
+}
+
+// GetFollowingCount 获取用户的关注数
+func (r *UserRepository) GetFollowingsCount(userID string) (int64, error) {
+	var total int64
+	err := r.db.Model(&models.Follow{}).Where("follower_id = ?", userID).Count(&total).Error
+	return total, err
+}
+
+// GetFollowers 分页获取用户的粉丝列表
+func (r *UserRepository) GetFollowers(userID string, page, size int) ([]models.User, int64, error) {
+	total, err := r.GetFollowersCount(userID)
+
+	if total == 0 || err != nil {
+		return []models.User{}, total, err
+	}
+
+	var followers []models.Follow
+
+	err = r.db.Where("following_id = ?", userID).Order("created_at DESC").Limit(size).Offset((page - 1) * size).Find(&followers).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	//收集所有粉丝的id
+	ids := make([]string, len(followers))
+	for i := range followers {
+		ids[i] = followers[i].FollowerID
+	}
+	var users []models.User
+	err = r.db.Where("id IN ?", ids).Find(&users).Error
+	return users, total, err
+}
+
+// GetFollowerings 获取用户的关注列表
+func (r *UserRepository) GetFollowings(userID string, page, size int) ([]models.User, int64, error) {
+	total, err := r.GetFollowingsCount(userID)
+
+	if total == 0 || err != nil {
+		return []models.User{}, total, err
+	}
+
+	var followings []models.Follow
+
+	err = r.db.Where("follower_id = ?", userID).Order("created_at DESC").Limit(size).Offset((page - 1) * size).Find(&followings).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	//收集所有关注的id
+	ids := make([]string, len(followings))
+	for i := range followings {
+		ids[i] = followings[i].FollowingID
+	}
+	fmt.Printf("查找到的ID：%v", ids[0])
+	var users []models.User
+	err = r.db.Where("id IN ?", ids).Find(&users).Error
+	return users, total, err
 }

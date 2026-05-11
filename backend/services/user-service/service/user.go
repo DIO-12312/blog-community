@@ -96,3 +96,43 @@ func (s *UserService) UpdateProfile(id string, updates map[string]interface{}) e
 	}
 	return nil
 }
+
+// Follow 关注用户
+func (s *UserService) Follow(followerID, followingID string) error {
+	// 不能关注自己
+	if followerID == followingID {
+		return errors.New("不能关注自己")
+	}
+	// 被关注用户是否存在
+	if _, ok := s.repo.GetUserByID(followingID); !ok {
+		return errors.New("被关注用户不存在")
+	}
+	// 是否已经关注
+	if ok, _ := s.repo.IsFollowing(followerID, followingID); ok {
+		return errors.New("请勿重复关注")
+	}
+	return s.repo.Follow(followerID, followingID)
+}
+
+func (s *UserService) UnFollow(followerID, followingID string) error {
+	// 被关注用户是否存在
+	if _, ok := s.repo.GetUserByID(followingID); !ok {
+		return errors.New("该用户不存在")
+	}
+
+	//未关注
+	if ok, _ := s.repo.IsFollowing(followerID, followingID); !ok {
+		return errors.New("未关注该用户")
+	}
+	return s.repo.UnFollow(followerID, followingID)
+}
+
+// GetFollowers 获取粉丝列表
+func (s *UserService) GetFollowers(userID string, page, size int) ([]models.User, int64, error) {
+	return s.repo.GetFollowers(userID, page, size)
+}
+
+// GetFollowing 获取关注列表
+func (s *UserService) GetFollowings(userID string, page, size int) ([]models.User, int64, error) {
+	return s.repo.GetFollowings(userID, page, size)
+}

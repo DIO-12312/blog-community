@@ -4,6 +4,7 @@ import (
 	"blog-community/shared/utils"
 	"blog-community/user-service/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -107,4 +108,69 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 	utils.Success(c, http.StatusOK, "更新用户信息成功", nil)
 
+}
+
+// Follow POST /api/users/:id/follow
+func (h *UserHandler) Follow(c *gin.Context) {
+	followerID := c.GetHeader("X-User-ID")
+	followingID := c.Param("id")
+	err := h.service.Follow(followerID, followingID)
+	if err != nil {
+		utils.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, "关注成功", nil)
+}
+
+// UnFollow DELETE /api/users/:id/follow
+func (h *UserHandler) UnFollow(c *gin.Context) {
+	followerID := c.GetHeader("X-User-ID")
+	followingID := c.Param("id")
+	err := h.service.UnFollow(followerID, followingID)
+	if err != nil {
+		utils.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, "取消关注成功", nil)
+}
+
+// GetFollowers GET /api/users/:id/followers
+func (h *UserHandler) GetFollowers(c *gin.Context) {
+	userID := c.Param("id")
+	page, size := parsePagination(c)
+	users, total, err := h.service.GetFollowers(userID, page, size)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "获取粉丝列表失败："+err.Error())
+		return
+	}
+	utils.Paginated(c, users, "获取粉丝", total, page, size)
+}
+
+// GetFollowings GET /api/users/:id/followings
+func (h *UserHandler) GetFollowings(c *gin.Context) {
+	userID := c.Param("id")
+	page, size := parsePagination(c)
+	users, total, err := h.service.GetFollowings(userID, page, size)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "获取关注列表失败："+err.Error())
+		return
+	}
+	utils.Paginated(c, users, "获取关注", total, page, size)
+}
+
+// parsePagination 解析分页参数
+func parsePagination(c *gin.Context) (int, int) {
+	page := 1
+	size := 10
+	if p := c.Query("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if s := c.Query("size"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 && v <= 50 {
+			size = v
+		}
+	}
+	return page, size
 }

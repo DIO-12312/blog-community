@@ -29,6 +29,10 @@ func main() {
 	router.GET("/api/users/:id", handler.GetProfile)
 	router.PUT("/api/users/:id", handler.UpdateProfile)
 
+	router.POST("/api/users/:id/follow", handler.Follow)
+	router.DELETE("/api/users/:id/follow", handler.UnFollow)
+	router.GET("/api/users/:id/followers", handler.GetFollowers)
+	router.GET("/api/users/:id/followings", handler.GetFollowings)
 	log.Println("用户服务启动在 :8001")
 	router.Run(":8001")
 }
