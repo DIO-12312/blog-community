@@ -33,6 +33,7 @@ func Paginated(c *gin.Context, data interface{}, message string, total int64, pa
 	c.JSON(200, models.PaginatedResponse{
 		Code:    200,
 		Message: message,
+		Data:    data,
 		Pagination: models.PaginationMeta{
 			Total:    total,
 			Page:     page,

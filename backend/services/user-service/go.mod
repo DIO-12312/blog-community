@@ -1,6 +1,6 @@
 module blog-community/user-service
 
-go 1.25.0
+go 1.26.2
 
 require (
 	github.com/gin-gonic/gin v1.12.0
@@ -43,11 +43,14 @@ require (
 )
 
 require (
+	blog-community/api-gateway v0.0.0
 	blog-community/shared v0.0.0
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
 
 replace blog-community/shared => ../../shared
+
+replace blog-community/api-gateway => ../../api-gateway
