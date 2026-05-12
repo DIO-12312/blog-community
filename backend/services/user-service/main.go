@@ -27,7 +27,7 @@ func main() {
 
 	router.POST("/api/users/register", handler.Register)
 	router.POST("/api/users/login", handler.Login)
-	router.GET("/api/users/:id", handler.GetProfile)
+	router.GET("/api/users", handler.GetProfile)
 	router.PUT("/api/users/:id", handler.UpdateProfile)
 
 	router.POST("/api/users/:id/follow", handler.Follow)

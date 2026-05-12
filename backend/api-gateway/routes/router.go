@@ -51,7 +51,7 @@ func setupPublicRoutes(router *gin.Engine) {
 // setupPrivateRoutes 设置需要认证的路由
 func setupPrivateRoutes(router *gin.RouterGroup) {
 	// 用户相关
-	router.GET("/api/users/:id", proxyTo("user"))
+	router.GET("/api/users", proxyTo("user"))
 	router.PUT("/api/users/:id", proxyTo("user"))
 	router.POST("/api/users/:id/follow", proxyTo("user"))
 	router.DELETE("/api/users/:id/follow", proxyTo("user"))

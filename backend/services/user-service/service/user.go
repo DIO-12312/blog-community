@@ -80,13 +80,30 @@ func (s *UserService) Login(username, password string) (string, error) {
 }
 
 // 获取用户信息
-func (s *UserService) GetProfile(id string) (*models.User, error) {
+func (s *UserService) GetProfile(id, username, email string) (*models.User, error) {
 
-	user, ok := s.repo.GetUserByID(id)
-	if !ok {
-		return nil, errors.New("用户不存在")
+	if id != "" {
+		user, ok := s.repo.GetUserByID(id)
+		if !ok {
+			return nil, errors.New("用户不存在")
+		}
+		return user, nil
 	}
-	return user, nil
+	if username != "" {
+		user, ok := s.repo.GetUserByUsername(username)
+		if !ok {
+			return nil, errors.New("用户不存在")
+		}
+		return user, nil
+	}
+	if email != "" {
+		user, ok := s.repo.GetUserByEmail(email)
+		if !ok {
+			return nil, errors.New("用户不存在")
+		}
+		return user, nil
+	}
+	return nil, errors.New("查询参数为空")
 }
 
 // 更新用户信息

@@ -62,10 +62,12 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 }
 
-// GetProfile GET /api/users/:id
+// GetProfile GET /api/users?
 func (h *UserHandler) GetProfile(c *gin.Context) {
-	userID := c.Param("id")
-	user, err := h.service.GetProfile(userID)
+	id := c.Query("id")
+	username := c.Query("username")
+	email := c.Query("email")
+	user, err := h.service.GetProfile(id, username, email)
 
 	if err != nil {
 		utils.Error(c, http.StatusNotFound, err.Error())
