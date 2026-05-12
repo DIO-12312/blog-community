@@ -66,5 +66,40 @@ func AuthMiddleware() gin.HandlerFunc {
 
 // OptionalAuthMiddleware 可选的认证中间件（某些路由不需要认证）
 func OptionalAuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {}
+	return func(c *gin.Context) {
+		// 1.获取认证请求头
+		auth := c.GetHeader("Authorization")
+		if auth == "" {
+			c.Next()
+		}
+		// 2. 解析 "Bearer <token>" 格式
+		parts := strings.SplitN(auth, ".", -1)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.Next()
+			return //必须要返回，否则后面的中间件执行完会继续执行后面
+		}
+		tokenString := parts[1]
+
+		// 3. 验证令牌有效
+		claims := &Claims{}
+
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			//断言验证
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return ([]byte)(JWTSecret), nil
+		})
+		if err != nil || token.Valid != true {
+			c.Next()
+			return
+		}
+
+		// 4. 自定义字段头部注入
+		c.Header("X-User-ID", claims.UserID)
+		c.Header("X-Username", claims.UserName)
+
+		// 5. 继续处理请求
+		c.Next()
+	}
 }
