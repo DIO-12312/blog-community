@@ -27,17 +27,19 @@ func AuthMiddleware() gin.HandlerFunc {
 				"code":    401,
 				"message": "缺少令牌",
 			})
+			return
 		}
 		// 2. 解析 "Bearer <token>" 格式
-		parts := strings.SplitN(auth, ".", -1)
+		parts := strings.SplitN(auth, " ", -1)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    401,
 				"message": "令牌格式错误",
 			})
+			return
 		}
 		tokenString := parts[1]
-
+		fmt.Println("解析到令牌:", tokenString)
 		// 3. 验证令牌有效
 		claims := &Claims{}
 
@@ -49,10 +51,12 @@ func AuthMiddleware() gin.HandlerFunc {
 			return ([]byte)(JWTSecret), nil
 		})
 		if err != nil || token.Valid != true {
+			fmt.Println("令牌验证失败:", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    401,
 				"message": "令牌无效或已过期",
 			})
+			return
 		}
 
 		// 4. 自定义字段头部注入
