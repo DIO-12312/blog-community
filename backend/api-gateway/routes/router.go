@@ -51,12 +51,13 @@ func setupPublicRoutes(router *gin.Engine) {
 // setupPrivateRoutes 设置需要认证的路由
 func setupPrivateRoutes(router *gin.RouterGroup) {
 	// 用户相关
-	router.GET("/api/users", proxyTo("user"))
+
+	router.GET("/api/users", proxyTo("user")) //支持ID/用户名/邮箱查询
 	router.PUT("/api/users/:id", proxyTo("user"))
 	router.POST("/api/users/:id/follow", proxyTo("user"))
 	router.DELETE("/api/users/:id/follow", proxyTo("user"))
 	router.GET("/api/users/:id/followers", proxyTo("user"))
-	router.GET("/api/users/:id/following", proxyTo("user"))
+	router.GET("/api/users/ :id/following", proxyTo("user"))
 
 	// 文章相关
 	router.POST("/api/articles", proxyTo("article"))
