@@ -8,8 +8,6 @@ import (
 
 	"blog-community/content-service/repository"
 	"blog-community/shared/models"
-
-	"github.com/google/uuid"
 )
 
 // ArticleService 文章业务逻辑层
@@ -37,21 +35,20 @@ func (s *ArticleService) CreateArticle(authorID, title, content, summary, catego
 
 	// 2. 创建文章实例
 	article := &models.Article{
-		ID:           uuid.New().String(),
+		BaseModel:    models.BaseModel{CreatedAt: time.Now(), UpdatedAt: time.Now()},
 		AuthorID:     authorID,
 		Title:        title,
 		Content:      content,
 		Summary:      summary,
 		Category:     category,
-		Status:       draft, // 默认草稿
+		Status:       models.StatusDraft, // 默认草稿
 		ViewCount:    0,
 		LikeCount:    0,
 		CommentCount: 0,
-		CreatedAt:    time.Now(),
 	}
 
 	// 处理标签
-	if tags != nil && len(tags) > 0 {
+	if len(tags) > 0 {
 		jsonTags, _ := json.Marshal(tags)
 		article.Tags = jsonTags
 	}
@@ -78,7 +75,7 @@ func (s *ArticleService) EditArticle(articleID, authorID, title, content, summar
 	}
 
 	// 3. 状态检查
-	if article.Status != draft {
+	if article.Status != models.StatusDraft {
 		return nil, errors.New("只能编辑草稿状态的文章")
 	}
 
@@ -114,7 +111,7 @@ func (s *ArticleService) PublishArticle(articleID, authorID string) (*models.Art
 
 	article.Status = models.StatusPublished
 	now := time.Now()
-	article.PublishedAt = &now
+	article.PublishedAt = now
 	article.UpdatedAt = now
 
 	if err := s.repo.Update(article); err != nil {
