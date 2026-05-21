@@ -32,6 +32,9 @@ func CommentListKey(articleID string, page, size int) string {
 	return fmt.Sprintf("comments:%s:%d:%d", articleID, page, size)
 }
 
+// NullValue 缓存空值，用于防止缓存穿透
+const NullValue = "__NULL__"
+
 // 缓存过期时间常量
 const (
 	ArticleExpiration     = 24 * 60 * 60 // 文章详情：1 天
