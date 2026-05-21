@@ -2,7 +2,6 @@ package main
 
 import (
 	"blog-community/content-service/handler"
-	"blog-community/content-service/migration"
 	"blog-community/content-service/repository"
 	"blog-community/content-service/service"
 	"blog-community/shared/cache"
@@ -15,16 +14,13 @@ import (
 
 func main() {
 	// 1. 连接数据库
-	dsn := "user:password@tcp(localhost:3306)/blog_community?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:123456@tcp(localhost:3306)/blog?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
 	// 2. 执行数据库迁移
-	if err := migration.RunMigrations(db); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
 
 	// 3. 连接 Redis
 	redisClient, err := cache.NewRedisClient("localhost:6379", "")
@@ -44,7 +40,7 @@ func main() {
 	// 公开路由
 	router.GET("/api/articles", h.ListArticles)
 	router.GET("/api/articles/:id", h.GetArticle)
-	router.GET("/api/articles", h.ListByCategory)
+	router.GET("/api/articles/category/:category", h.ListByCategory)
 
 	// 需要认证的路由
 	router.POST("/api/articles", h.CreateArticle)

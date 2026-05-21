@@ -40,11 +40,12 @@ func (r *ArticleRepository) GetByID(ctx context.Context, id string) (*models.Art
 	//1.1 查询到了缓存
 	if err == nil && ArticleValue != "" {
 		//防止缓存穿透，预设空值
-		if ArticleValue != cache.NullValue {
-			var article models.Article
-			if err := json.Unmarshal(([]byte)(ArticleValue), &article); err != nil {
-				return &article, err
-			}
+		if ArticleValue == cache.NullValue {
+			return nil, errors.New("文章不存在")
+		}
+		var article models.Article
+		if err := json.Unmarshal(([]byte)(ArticleValue), &article); err != nil {
+			return &article, err
 		}
 	}
 
@@ -199,10 +200,14 @@ func (r *ArticleRepository) IncrementViewCount(ctx context.Context, id string) e
 }
 
 // UpdateStats 更新统计数据（点赞数、评论数）
-func (r *ArticleRepository) UpdateStats(id string, likeCount, commentCount int64) error {
-	return r.db.Model(&models.Article{}).Where("id = ?", id).
+func (r *ArticleRepository) UpdateStats(ctx context.Context, id string, likeCount, commentCount int64) error {
+	err := r.db.Model(&models.Article{}).Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"like_count":    likeCount,
 			"comment_count": commentCount,
 		}).Error
+	if err != nil {
+		r.redis.Del(ctx, cache.ArticleKey(id))
+	}
+	return err
 }

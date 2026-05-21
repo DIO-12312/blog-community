@@ -76,9 +76,9 @@ func (h *ArticleHandler) ListArticles(c *gin.Context) {
 	utils.Paginated(c, articles, "获取成功", total, page, size)
 }
 
-// ListByCategory GET /api/articles?category=xxx
+// ListByCategory GET /api/articles/category/:category
 func (h *ArticleHandler) ListByCategory(c *gin.Context) {
-	category := c.Query("category")
+	category := c.Param("category")
 	page, size := parsePagination(c)
 
 	articles, total, err := h.service.ListArticlesByCategory(category, page, size)
