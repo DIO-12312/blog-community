@@ -53,8 +53,8 @@ func (h *ArticleHandler) CreateArticle(c *gin.Context) {
 // GetArticle GET /api/articles/:id
 func (h *ArticleHandler) GetArticle(c *gin.Context) {
 	articleID := c.Param("id")
-
-	article, err := h.service.GetArticleDetail(articleID)
+	ctx := c.Request.Context()
+	article, err := h.service.GetArticleDetail(ctx, articleID)
 	if err != nil {
 		utils.Error(c, http.StatusNotFound, err.Error())
 		return
@@ -120,8 +120,8 @@ func (h *ArticleHandler) EditArticle(c *gin.Context) {
 func (h *ArticleHandler) PublishArticle(c *gin.Context) {
 	articleID := c.Param("id")
 	authorID := c.GetHeader("X-User-ID")
-
-	article, err := h.service.PublishArticle(articleID, authorID)
+	ctx := c.Request.Context()
+	article, err := h.service.PublishArticle(ctx, articleID, authorID)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -134,8 +134,8 @@ func (h *ArticleHandler) PublishArticle(c *gin.Context) {
 func (h *ArticleHandler) DeleteArticle(c *gin.Context) {
 	articleID := c.Param("id")
 	authorID := c.GetHeader("X-User-ID")
-
-	if err := h.service.DeleteArticle(articleID, authorID); err != nil {
+	ctx := c.Request.Context()
+	if err := h.service.DeleteArticle(ctx, articleID, authorID); err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,9 +63,9 @@ func (s *ArticleService) CreateArticle(authorID, title, content, summary, catego
 }
 
 // EditArticle 编辑文章（仅草稿可编辑）
-func (s *ArticleService) EditArticle(articleID, authorID, title, content, summary, category string) (*models.Article, error) {
+func (s *ArticleService) EditArticle(ctx context.Context, articleID, authorID, title, content, summary, category string) (*models.Article, error) {
 	// 1. 获取文章
-	article, err := s.repo.GetByID(articleID)
+	article, err := s.repo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +88,7 @@ func (s *ArticleService) EditArticle(articleID, authorID, title, content, summar
 	article.UpdatedAt = time.Now()
 
 	// 5. 保存
-	if err := s.repo.Update(article); err != nil {
+	if err := s.repo.Update(ctx, article); err != nil {
 		return nil, fmt.Errorf("更新文章失败: %w", err)
 	}
 
@@ -95,8 +96,8 @@ func (s *ArticleService) EditArticle(articleID, authorID, title, content, summar
 }
 
 // PublishArticle 发布文章（只能发布自己的草稿）
-func (s *ArticleService) PublishArticle(articleID, authorID string) (*models.Article, error) {
-	article, err := s.repo.GetByID(articleID)
+func (s *ArticleService) PublishArticle(ctx context.Context, articleID, authorID string) (*models.Article, error) {
+	article, err := s.repo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +115,7 @@ func (s *ArticleService) PublishArticle(articleID, authorID string) (*models.Art
 	article.PublishedAt = now
 	article.UpdatedAt = now
 
-	if err := s.repo.Update(article); err != nil {
+	if err := s.repo.Update(ctx, article); err != nil {
 		return nil, fmt.Errorf("发布文章失败: %w", err)
 	}
 
@@ -124,8 +125,8 @@ func (s *ArticleService) PublishArticle(articleID, authorID string) (*models.Art
 }
 
 // DeleteArticle 删除文章（软删除）
-func (s *ArticleService) DeleteArticle(articleID, authorID string) error {
-	article, err := s.repo.GetByID(articleID)
+func (s *ArticleService) DeleteArticle(ctx context.Context, articleID, authorID string) error {
+	article, err := s.repo.GetByID(ctx, articleID)
 	if err != nil {
 		return err
 	}
@@ -134,18 +135,18 @@ func (s *ArticleService) DeleteArticle(articleID, authorID string) error {
 		return errors.New("只有作者可以删除")
 	}
 
-	return s.repo.Delete(articleID)
+	return s.repo.Delete(ctx, articleID)
 }
 
 // GetArticleDetail 获取文章详情（增加浏览次数）
-func (s *ArticleService) GetArticleDetail(articleID string) (*models.Article, error) {
-	article, err := s.repo.GetByID(articleID)
+func (s *ArticleService) GetArticleDetail(ctx context.Context, articleID string) (*models.Article, error) {
+	article, err := s.repo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, err
 	}
 
 	// 异步增加浏览次数（可以用 goroutine）
-	go s.repo.IncrementViewCount(articleID)
+	go s.repo.IncrementViewCount(ctx, articleID)
 
 	return article, nil
 }
