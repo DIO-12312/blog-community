@@ -94,7 +94,7 @@ func (h *ArticleHandler) ListByCategory(c *gin.Context) {
 func (h *ArticleHandler) EditArticle(c *gin.Context) {
 	articleID := c.Param("id")
 	authorID := c.GetHeader("X-User-ID")
-
+	ctx := c.Request.Context()
 	var req struct {
 		Title    string `json:"title" binding:"required"`
 		Content  string `json:"content" binding:"required"`
@@ -107,7 +107,7 @@ func (h *ArticleHandler) EditArticle(c *gin.Context) {
 		return
 	}
 
-	article, err := h.service.EditArticle(articleID, authorID, req.Title, req.Content, req.Summary, req.Category)
+	article, err := h.service.EditArticle(ctx, articleID, authorID, req.Title, req.Content, req.Summary, req.Category)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
