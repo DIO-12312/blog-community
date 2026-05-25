@@ -1,1 +1,88 @@
 package service
+
+import (
+	"errors"
+
+	"blog-community/interaction-service/repository"
+	"blog-community/shared/models"
+
+	"gorm.io/gorm"
+)
+
+type CommentService struct {
+	repo *repository.CommentRepository
+}
+
+func NewCommentService(repo *repository.CommentRepository) *CommentService {
+	return &CommentService{repo: repo}
+}
+
+// Create 创建评论
+func (s *CommentService) Create(articleID, userID, content string, parentID *string) (*models.Comment, error) {
+	// 如果是回复，检查父评论是否存在
+	if parentID != nil {
+		parent, err := s.repo.GetByID(*parentID)
+		if err != nil {
+			return nil, errors.New("父评论不存在")
+		}
+		// 确保父评论属于同一篇文章
+		if parent.ArticleID != articleID {
+			return nil, errors.New("父评论不属于该文章")
+		}
+	}
+
+	comment := &models.Comment{
+		ArticleID: articleID,
+		UserID:    userID,
+		Content:   content,
+		ParentID:  parentID,
+	}
+
+	if err := s.repo.Create(comment); err != nil {
+		return nil, errors.New("创建评论失败")
+	}
+	return comment, nil
+}
+
+// Delete 删除评论（仅允许评论作者）
+func (s *CommentService) Delete(commentID, userID string) error {
+	comment, err := s.repo.GetByID(commentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("评论不存在")
+		}
+		return err
+	}
+
+	if comment.UserID != userID {
+		return errors.New("只能删除自己的评论")
+	}
+
+	return s.repo.Delete(commentID)
+}
+
+// GetByArticle 获取文章评论（树形结构）
+func (s *CommentService) GetByArticle(articleID string, page, size int) ([]models.Comment, []models.Comment, int64, error) {
+	// 第一步：获取顶层评论（分页）
+	topComments, total, err := s.repo.GetTopLevelByArticle(articleID, page, size)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	if len(topComments) == 0 {
+		return topComments, nil, total, nil
+	}
+
+	// 第二步：批量获取所有子评论
+	parentIDs := make([]string, len(topComments))
+	for i, c := range topComments {
+		parentIDs[i] = c.ID
+	}
+
+	children, err := s.repo.GetChildrenByParentIDs(parentIDs)
+	if err != nil {
+		return topComments, nil, total, nil // 子评论获取失败不影响顶层
+	}
+
+	return topComments, children, total, nil
+}
