@@ -268,11 +268,11 @@ func TestCreate_Success(t *testing.T) {
 	defer cleanup()
 
 	article := &models.Article{
-		BaseModel:    models.BaseModel{ID: "create-test-001", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-		AuthorID:     "author-002",
-		Title:        "新创建的文章",
-		Content:      "内容",
-		Status:       models.StatusDraft,
+		BaseModel: models.BaseModel{ID: "create-test-001", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		AuthorID:  "author-002",
+		Title:     "新创建的文章",
+		Content:   "内容",
+		Status:    models.StatusDraft,
 	}
 
 	err := repo.Create(article)
@@ -499,16 +499,16 @@ func TestIncrementViewCount_Multiple(t *testing.T) {
 func TestUpdateStats(t *testing.T) {
 	repo, cleanup := newTestRepo(t)
 	defer cleanup()
-
+	ctx := context.Background()
 	article := createTestArticle(t, repo)
 
-	err := repo.UpdateStats(article.ID, 10, 5)
+	err := repo.UpdateStats(ctx, article.ID, 10, 5)
 	if err != nil {
 		t.Fatalf("UpdateStats 失败: %v", err)
 	}
 
 	// 注：UpdateStats 不会失效缓存，这是已发现的潜在问题
-	ctx := context.Background()
+
 	result, err := repo.GetByID(ctx, article.ID)
 	if err != nil {
 		t.Fatalf("GetByID 失败: %v", err)
