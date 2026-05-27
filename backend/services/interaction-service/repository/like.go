@@ -32,22 +32,22 @@ func (r *LikeRepository) Unlike(userID, targetID, targetType string) error {
 }
 
 // IsLiked 是否已点赞
-func (r *LikeRepository) IsLiked(userID, targetID, targetType string) bool {
+func (r *LikeRepository) IsLiked(userID, targetID, targetType string) (bool, error) {
 	var count int64
-	r.db.Model(&models.Like{}).
+	err := r.db.Model(&models.Like{}).
 		Where("user_id = ? AND target_id = ? AND target_type = ?",
 			userID, targetID, targetType).
-		Count(&count)
-	return count > 0
+		Count(&count).Error
+	return count > 0, err
 }
 
 // GetLikeCount 获取点赞数
-func (r *LikeRepository) GetLikeCount(targetID, targetType string) int64 {
+func (r *LikeRepository) GetLikeCount(targetID, targetType string) (int64, error) {
 	var count int64
-	r.db.Model(&models.Like{}).
+	err := r.db.Model(&models.Like{}).
 		Where("target_id = ? AND target_type = ?", targetID, targetType).
-		Count(&count)
-	return count
+		Count(&count).Error
+	return count, err
 }
 
 // GetUserLikedIDs 获取用户点赞的目标ID列表（分页）
