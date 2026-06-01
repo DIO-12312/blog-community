@@ -11,6 +11,7 @@ import (
 	"blog-community/content-service/repository"
 	"blog-community/content-service/service"
 	"blog-community/shared/cache"
+	"blog-community/shared/events"
 	"blog-community/shared/models"
 
 	"github.com/gin-gonic/gin"
@@ -41,7 +42,9 @@ func newTestHandler(t *testing.T) (*ArticleHandler, func()) {
 	}
 
 	repo := repository.NewArticleRepository(db, redisClient)
-	svc := service.NewArticleService(repo)
+	rmq := events.NewRabbitMQ()
+	publisher := events.NewPublisher(rmq)
+	svc := service.NewArticleService(repo, publisher)
 	handler := NewArticleHandler(svc)
 
 	cleanup := func() {
