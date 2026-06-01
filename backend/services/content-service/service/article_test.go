@@ -32,7 +32,7 @@ func newTestService(t *testing.T) (*ArticleService, func()) {
 	}
 
 	repo := repository.NewArticleRepository(db, redisClient)
-	svc := NewArticleService(repo)
+	svc := NewArticleService(repo, nil) // 传递 nil 作为 publisher，因为我们不测试事件发布
 
 	cleanup := func() {
 		redisClient.Close()
@@ -529,9 +529,9 @@ func TestCreateArticle_TitleAtBoundary(t *testing.T) {
 	defer cleanup()
 
 	tests := []struct {
-		name      string
-		titleLen  int
-		shouldOK  bool
+		name     string
+		titleLen int
+		shouldOK bool
 	}{
 		{"199字", 199, true},
 		{"200字(边界)", 200, true},

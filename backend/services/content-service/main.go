@@ -5,6 +5,7 @@ import (
 	"blog-community/content-service/repository"
 	"blog-community/content-service/service"
 	"blog-community/shared/cache"
+	"blog-community/shared/events"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,12 @@ func main() {
 
 	// 4. 初始化各层
 	repo := repository.NewArticleRepository(db, redisClient)
-	svc := service.NewArticleService(repo)
+
+	rmq := events.NewRabbitMQ()
+	defer rmq.Close()
+
+	publisher := events.NewPublisher(rmq)
+	svc := service.NewArticleService(repo, publisher)
 	h := handler.NewArticleHandler(svc)
 
 	// 5. 设置路由

@@ -8,17 +8,19 @@ import (
 	"time"
 
 	"blog-community/content-service/repository"
+	"blog-community/shared/events"
 	"blog-community/shared/models"
 )
 
 // ArticleService 文章业务逻辑层
 type ArticleService struct {
-	repo *repository.ArticleRepository
+	repo      *repository.ArticleRepository
+	publisher *events.Publisher
 }
 
 // NewArticleService 创建文章服务
-func NewArticleService(repo *repository.ArticleRepository) *ArticleService {
-	return &ArticleService{repo}
+func NewArticleService(repo *repository.ArticleRepository, publisher *events.Publisher) *ArticleService {
+	return &ArticleService{repo: repo, publisher: publisher}
 }
 
 // CreateArticle 创建文章
@@ -120,6 +122,11 @@ func (s *ArticleService) PublishArticle(ctx context.Context, articleID, authorID
 	}
 
 	// TODO: 发布事件到 RabbitMQ，通知其他服务
+	s.publisher.Publish(events.EventArticlePublished, map[string]interface{}{
+		"article_id": articleID,
+		"user_id":    authorID,
+		"title":      article.Title,
+	})
 
 	return article, nil
 }
