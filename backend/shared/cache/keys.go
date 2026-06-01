@@ -32,6 +32,16 @@ func CommentListKey(articleID string, page, size int) string {
 	return fmt.Sprintf("comments:%s:%d:%d", articleID, page, size)
 }
 
+// LikeCountKey 生成点赞计数的 Redis Key
+func LikeCountKey(targetType, targetID string) string {
+	return fmt.Sprintf("like_count:%s:%s", targetType, targetID)
+}
+
+// CollectionCountKey 生成收藏计数的 Redis Key
+func CollectionCountKey(articleID string) string {
+	return fmt.Sprintf("collection_count:%s", articleID)
+}
+
 // NullValue 缓存空值，用于防止缓存穿透
 const NullValue = "__NULL__"
 
@@ -42,4 +52,5 @@ const (
 	UserExpiration        = 12 * 60 * 60 // 用户信息：12 小时
 	CommentListExpiration = 30 * 60      // 评论列表：30 分钟
 	EmptyValueExpiration  = 5 * 60       // 空值缓存：5 分钟
+	LikeExpiration        = 1 * 60       // 点赞缓存：1 分钟
 )

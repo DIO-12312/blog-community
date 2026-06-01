@@ -63,3 +63,26 @@ func (r *RabbitMQ) DeclareExchange(name, kind string) error {
 		nil,   // arguments: 额外参数
 	)
 }
+
+func (r *RabbitMQ) DeclareQueue(name, kind string) (amqp.Queue, error) {
+	return r.channel.QueueDeclare(
+		name,  // 队列名称
+		true,  // durable: 持久化，RabbitMQ 重启后不丢失
+		false, // auto-delete: 没有消费者时不自动删除
+		false, // internal: 不是内部队列
+		false, // no-wait: 等待服务器确认
+		nil,   // arguments: 额外参数
+
+	)
+}
+
+// BindQueue 绑定队列到交换机
+func (r *RabbitMQ) BindQueue(queueName, routingKey, exchangeName string) error {
+	return r.channel.QueueBind(
+		queueName,    // 队列名
+		routingKey,   // 路由键（支持通配符）
+		exchangeName, // 交换机名
+		false,        // no-wait
+		nil,          // arguments
+	)
+}
