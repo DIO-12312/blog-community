@@ -13,10 +13,9 @@ import (
 
 // ServiceRegistry 服务注册表
 var services = map[string]string{
-	"user":         "http://localhost:8001",
-	"article":      "http://localhost:8002",
-	"interaction":  "http://localhost:8003",
-	"notification": "http://localhost:8006",
+	"user":        "http://localhost:8001",
+	"article":     "http://localhost:8002",
+	"interaction": "http://localhost:8003",
 }
 
 // SetupRoutes 设置所有路由
@@ -80,11 +79,6 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 	router.GET("/api/collections/status", proxyTo("interaction"))
 	router.GET("/api/collections", proxyTo("interaction"))
 
-	// 通知相关
-	router.GET("/api/notifications", proxyTo("notification"))
-	router.PUT("/api/notifications/read-all", proxyTo("notification"))
-	router.PUT("/api/notifications/:id/read", proxyTo("notification"))
-	router.GET("/api/notifications/unread-count", proxyTo("notification"))
 }
 
 // proxyTo 返回一个反向代理处理器
