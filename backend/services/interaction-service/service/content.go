@@ -2,19 +2,23 @@ package service
 
 import (
 	"errors"
+	"log"
 
 	"blog-community/interaction-service/repository"
+	"blog-community/shared/events"
 	"blog-community/shared/models"
 
 	"gorm.io/gorm"
 )
 
 type CommentService struct {
-	repo *repository.CommentRepository
+	repo      *repository.CommentRepository
+	db        *gorm.DB
+	publisher *events.Publisher
 }
 
-func NewCommentService(repo *repository.CommentRepository) *CommentService {
-	return &CommentService{repo: repo}
+func NewCommentService(repo *repository.CommentRepository, db *gorm.DB, publisher *events.Publisher) *CommentService {
+	return &CommentService{repo: repo, db: db, publisher: publisher}
 }
 
 // Create 创建评论
@@ -41,6 +45,32 @@ func (s *CommentService) Create(articleID, userID, content string, parentID *str
 	if err := s.repo.Create(comment); err != nil {
 		return nil, errors.New("创建评论失败")
 	}
+
+	// 异步发布评论创建事件，通知文章作者
+	if s.publisher != nil {
+		var article struct {
+			AuthorID string
+			Title    string
+		}
+		if err := s.db.Table("articles").Select("author_id, title").Where("id = ?", articleID).First(&article).Error; err == nil {
+			var user struct {
+				Username string
+			}
+			if err := s.db.Table("users").Select("username").Where("id = ?", userID).First(&user).Error; err == nil {
+				go func() {
+					if err := s.publisher.Publish(events.EventCommentCreated, map[string]interface{}{
+						"comment_id":        comment.ID,
+						"article_author_id": article.AuthorID,
+						"article_title":     article.Title,
+						"commenter_name":    user.Username,
+					}); err != nil {
+						log.Printf("发布评论创建事件失败: %v", err)
+					}
+				}()
+			}
+		}
+	}
+
 	return comment, nil
 }
 

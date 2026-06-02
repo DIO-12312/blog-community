@@ -162,10 +162,16 @@ func TestMarkAsRead(t *testing.T) {
 		t.Error("期望 IsRead=true, 实际=false")
 	}
 
-	// 用错误的 userID 标记已读，不应影响（0 rows affected 不报错）
+	// 用错误的 userID 标记已读，应返回错误
 	err = repo.MarkAsRead(n.ID, "wrong-user")
-	if err != nil {
-		t.Fatalf("MarkAsRead(wrong user) 失败: %v", err)
+	if err == nil {
+		t.Error("期望 MarkAsRead(wrong user) 返回错误，实际返回 nil")
+	}
+	// 通知状态不变
+	var unchanged models.Notification
+	db.First(&unchanged, "id = ?", n.ID)
+	if !unchanged.IsRead {
+		t.Error("期望 IsRead=true (状态不变), 实际=false")
 	}
 }
 

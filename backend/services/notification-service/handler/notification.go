@@ -38,7 +38,11 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	notificationID := c.Param("id")
 
 	if err := h.service.MarkAsRead(notificationID, userID); err != nil {
-		utils.Error(c, http.StatusBadRequest, err.Error())
+		if err.Error() == "通知不存在或无权操作" {
+			utils.Error(c, http.StatusNotFound, err.Error())
+		} else {
+			utils.Error(c, http.StatusInternalServerError, "标记已读失败")
+		}
 		return
 	}
 	utils.Success(c, http.StatusOK, "已标记已读", nil)

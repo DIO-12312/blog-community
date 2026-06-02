@@ -197,16 +197,21 @@ func TestMarkAsRead_WrongUser(t *testing.T) {
 	}
 	db.Create(n)
 
-	// 用错误的用户标记
+	// 用错误的用户标记 → 应返回 404
 	req, _ := http.NewRequest("PUT", "/api/notifications/"+n.ID+"/read", nil)
 	req.Header.Set("X-User-ID", "user-2")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	// MarkAsRead with wrong user returns 0 rows, gorm doesn't error but the handler may return error
-	// 实际上 GORM 的 Update 没有匹配行时不会报错，rows affected = 0
-	if w.Code != 200 {
-		t.Logf("wrong user status: %d (这可能合理，取决于业务逻辑)", w.Code)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("wrong user status: 期望=%d, 实际=%d", http.StatusNotFound, w.Code)
+	}
+
+	// 验证通知仍为未读
+	var updated models.Notification
+	db.First(&updated, "id = ?", n.ID)
+	if updated.IsRead {
+		t.Error("IsRead: 期望=false (未读状态不变), 实际=true")
 	}
 }
 

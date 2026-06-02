@@ -13,11 +13,10 @@ import (
 
 // ServiceRegistry 服务注册表
 var services = map[string]string{
-	"user":        "http://localhost:8001",
-	"article":     "http://localhost:8002",
-	"interaction": "http://localhost:8003",
-	"permission":  "http://localhost:8004",
-	"search":      "http://localhost:8005",
+	"user":         "http://localhost:8001",
+	"article":      "http://localhost:8002",
+	"interaction":  "http://localhost:8003",
+	"notification": "http://localhost:8006",
 }
 
 // SetupRoutes 设置所有路由
@@ -46,28 +45,46 @@ func setupPublicRoutes(router *gin.Engine) {
 	// 文章列表（可匿名查看）
 	router.GET("/api/articles", middleware.OptionalAuthMiddleware(), proxyTo("article"))
 	router.GET("/api/articles/:id", middleware.OptionalAuthMiddleware(), proxyTo("article"))
+	router.GET("/api/articles/category/:category", middleware.OptionalAuthMiddleware(), proxyTo("article"))
 }
 
 // setupPrivateRoutes 设置需要认证的路由
 func setupPrivateRoutes(router *gin.RouterGroup) {
 	// 用户相关
-
-	router.GET("/api/users", proxyTo("user")) //支持ID/用户名/邮箱查询
+	router.GET("/api/users", proxyTo("user"))
 	router.PUT("/api/users/:id", proxyTo("user"))
 	router.POST("/api/users/:id/follow", proxyTo("user"))
 	router.DELETE("/api/users/:id/follow", proxyTo("user"))
 	router.GET("/api/users/:id/followers", proxyTo("user"))
-	router.GET("/api/users/ :id/following", proxyTo("user"))
+	router.GET("/api/users/:id/followings", proxyTo("user"))
 
 	// 文章相关
 	router.POST("/api/articles", proxyTo("article"))
 	router.PUT("/api/articles/:id", proxyTo("article"))
 	router.DELETE("/api/articles/:id", proxyTo("article"))
+	router.POST("/api/articles/:id/publish", proxyTo("article"))
 
-	// 互动相关
+	// 评论相关
 	router.POST("/api/articles/:id/comments", proxyTo("interaction"))
 	router.GET("/api/articles/:id/comments", proxyTo("interaction"))
-	router.POST("/api/comments/:id/like", proxyTo("interaction"))
+	router.DELETE("/api/comments/:id", proxyTo("interaction"))
+
+	// 点赞相关
+	router.POST("/api/likes", proxyTo("interaction"))
+	router.DELETE("/api/likes", proxyTo("interaction"))
+	router.GET("/api/likes/status", proxyTo("interaction"))
+
+	// 收藏相关
+	router.POST("/api/collections", proxyTo("interaction"))
+	router.DELETE("/api/collections/:article_id", proxyTo("interaction"))
+	router.GET("/api/collections/status", proxyTo("interaction"))
+	router.GET("/api/collections", proxyTo("interaction"))
+
+	// 通知相关
+	router.GET("/api/notifications", proxyTo("notification"))
+	router.PUT("/api/notifications/read-all", proxyTo("notification"))
+	router.PUT("/api/notifications/:id/read", proxyTo("notification"))
+	router.GET("/api/notifications/unread-count", proxyTo("notification"))
 }
 
 // proxyTo 返回一个反向代理处理器

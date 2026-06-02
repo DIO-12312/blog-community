@@ -1,10 +1,12 @@
 package service
 
 import (
-	"blog-community/shared/models"
 	"errors"
+	"log"
 	"time"
 
+	"blog-community/shared/events"
+	"blog-community/shared/models"
 	"blog-community/user-service/repository"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,12 +16,14 @@ import (
 type UserService struct {
 	repo      *repository.UserRepository
 	jwtSecret []byte
+	publisher *events.Publisher
 }
 
-func NewUserService(repo *repository.UserRepository, jwtSecret []byte) *UserService {
+func NewUserService(repo *repository.UserRepository, jwtSecret []byte, publisher *events.Publisher) *UserService {
 	return &UserService{
 		repo:      repo,
 		jwtSecret: jwtSecret,
+		publisher: publisher,
 	}
 }
 
@@ -128,7 +132,27 @@ func (s *UserService) Follow(followerID, followingID string) error {
 	if ok, _ := s.repo.IsFollowing(followerID, followingID); ok {
 		return errors.New("请勿重复关注")
 	}
-	return s.repo.Follow(followerID, followingID)
+	if err := s.repo.Follow(followerID, followingID); err != nil {
+		return err
+	}
+
+	// 异步发布关注事件，通知被关注用户
+	if s.publisher != nil {
+		follower, ok := s.repo.GetUserByID(followerID)
+		if ok {
+			go func() {
+				if err := s.publisher.Publish(events.EventUserFollowed, map[string]interface{}{
+					"follower_id":   followerID,
+					"following_id":  followingID,
+					"follower_name": follower.Username,
+				}); err != nil {
+					log.Printf("发布关注事件失败: %v", err)
+				}
+			}()
+		}
+	}
+
+	return nil
 }
 
 func (s *UserService) UnFollow(followerID, followingID string) error {

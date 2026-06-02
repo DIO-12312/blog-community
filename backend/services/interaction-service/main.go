@@ -1,13 +1,15 @@
 package main
 
 import (
+	"log"
+
 	"blog-community/interaction-service/handler"
 	"blog-community/interaction-service/repository"
 	"blog-community/interaction-service/service"
 	"blog-community/shared/cache"
 	"blog-community/shared/database"
+	"blog-community/shared/events"
 	"blog-community/shared/models"
-	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,9 +18,14 @@ func main() {
 	db := database.NewMySQL(database.LoadConfigFromEnv())
 	db.AutoMigrate(&models.Comment{}, &models.Like{}, &models.Collection{})
 
+	// RabbitMQ 事件发布
+	rmq := events.NewRabbitMQ()
+	defer rmq.Close()
+	publisher := events.NewPublisher(rmq)
+
 	// 评论
 	commentRepo := repository.NewCommentRepository(db)
-	commentSvc := service.NewCommentService(commentRepo)
+	commentSvc := service.NewCommentService(commentRepo, db, publisher)
 	commentH := handler.NewCommentHandler(commentSvc)
 
 	// Redis 缓存
@@ -34,7 +41,7 @@ func main() {
 
 	// 点赞
 	likeRepo := repository.NewLikeRepository(db)
-	likeSvc := service.NewLikeService(likeRepo, redisClient)
+	likeSvc := service.NewLikeService(likeRepo, redisClient, db, publisher)
 	likeH := handler.NewLikeHandler(likeSvc)
 
 	// 收藏

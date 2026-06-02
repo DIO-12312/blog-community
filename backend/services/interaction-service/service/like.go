@@ -1,23 +1,28 @@
 package service
 
 import (
-	"blog-community/interaction-service/repository"
-	"blog-community/shared/cache"
 	"context"
 	"errors"
+	"log"
 	"strconv"
 	"time"
+
+	"blog-community/interaction-service/repository"
+	"blog-community/shared/cache"
+	"blog-community/shared/events"
 
 	"gorm.io/gorm"
 )
 
 type LikeService struct {
-	repo    *repository.LikeRepository
-	counter *cache.RedisClient
+	repo      *repository.LikeRepository
+	counter   *cache.RedisClient
+	db        *gorm.DB
+	publisher *events.Publisher
 }
 
-func NewLikeService(repo *repository.LikeRepository, counter *cache.RedisClient) *LikeService {
-	return &LikeService{repo: repo, counter: counter}
+func NewLikeService(repo *repository.LikeRepository, counter *cache.RedisClient, db *gorm.DB, publisher *events.Publisher) *LikeService {
+	return &LikeService{repo: repo, counter: counter, db: db, publisher: publisher}
 }
 
 // Like 点赞
@@ -29,6 +34,32 @@ func (s *LikeService) Like(userID, targetID, targetType string) error {
 		return err
 	}
 	s.delCache(targetType, targetID)
+
+	// 异步发布点赞事件（仅文章点赞时通知文章作者）
+	if s.publisher != nil && targetType == "article" {
+		var article struct {
+			AuthorID string
+			Title    string
+		}
+		if err := s.db.Table("articles").Select("author_id, title").Where("id = ?", targetID).First(&article).Error; err == nil {
+			var user struct {
+				Username string
+			}
+			if err := s.db.Table("users").Select("username").Where("id = ?", userID).First(&user).Error; err == nil {
+				go func() {
+					if err := s.publisher.Publish(events.EventArticleLiked, map[string]interface{}{
+						"article_id":        targetID,
+						"article_author_id": article.AuthorID,
+						"article_title":     article.Title,
+						"liker_name":        user.Username,
+					}); err != nil {
+						log.Printf("发布点赞事件失败: %v", err)
+					}
+				}()
+			}
+		}
+	}
+
 	return nil
 }
 

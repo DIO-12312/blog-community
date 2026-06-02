@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"blog-community/shared/models"
 
 	"gorm.io/gorm"
@@ -32,9 +34,16 @@ func (r *NotificationRepository) GetByUserID(userID string, page, size int) ([]m
 }
 
 func (r *NotificationRepository) MarkAsRead(id, userID string) error {
-	return r.db.Model(&models.Notification{}).
+	result := r.db.Model(&models.Notification{}).
 		Where("id = ? AND user_id = ?", id, userID).
-		Update("is_read", true).Error
+		Update("is_read", true)
+	if result.Error != nil {
+		return fmt.Errorf("标记已读失败: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("通知不存在或无权操作")
+	}
+	return nil
 }
 
 func (r *NotificationRepository) MarkAllAsRead(userID string) error {
