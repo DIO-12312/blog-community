@@ -22,6 +22,9 @@ func ViewCountKey(articleID string) string {
 	return fmt.Sprintf("view_count:%s", articleID)
 }
 
+// ViewCountPattern 所有浏览次数计数器的 SCAN 模式
+const ViewCountPattern = "view_count:*"
+
 // UserKey 用户信息缓存键
 func UserKey(userID string) string {
 	return fmt.Sprintf("user:%s", userID)
@@ -53,4 +56,5 @@ const (
 	CommentListExpiration = 30 * 60      // 评论列表：30 分钟
 	EmptyValueExpiration  = 5 * 60       // 空值缓存：5 分钟
 	LikeExpiration        = 1 * 60       // 点赞缓存：1 分钟
+	ViewCountExpiration   = 2 * 60 * 60  // 浏览次数计数器：2 小时（定期同步到 DB 后清除）
 )

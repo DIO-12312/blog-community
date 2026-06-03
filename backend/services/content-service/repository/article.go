@@ -186,17 +186,58 @@ func (r *ArticleRepository) HardDelete(ctx context.Context, id string) error {
 	return err
 }
 
-// IncrementViewCount 增加浏览次数 (更新缓存)
+// IncrementViewCount 增加浏览次数（Redis 原子计数，消除 DB 行级锁）
 func (r *ArticleRepository) IncrementViewCount(ctx context.Context, id string) error {
-	err := r.db.Model(&models.Article{}).Where("id = ?", id).
-		// HardDelete 硬删除文章（仅管理员）（带缓存）
-		Update("view_count", gorm.Expr("view_count + 1")).Error
-
-	if err == nil {
-		ArticleCacheKey := cache.ArticleKey(id)
-		r.redis.Del(ctx, ArticleCacheKey)
+	viewKey := cache.ViewCountKey(id)
+	if _, err := r.redis.Incr(ctx, viewKey); err != nil {
+		return err
 	}
-	return err
+	// 设置过期时间防止内存泄漏（定期同步任务会清除）
+	r.redis.Expire(ctx, viewKey, cache.ViewCountExpiration*time.Second)
+	return nil
+}
+
+// GetViewCount 获取文章在 Redis 中的浏览次数增量
+func (r *ArticleRepository) GetViewCount(ctx context.Context, id string) (int64, error) {
+	return r.redis.GetInt64(ctx, cache.ViewCountKey(id))
+}
+
+// SyncViewCounts 将 Redis 中的浏览次数批量同步到 MySQL
+// 返回同步的文章数
+func (r *ArticleRepository) SyncViewCounts(ctx context.Context) (int, error) {
+	keys, err := r.redis.ScanKeys(ctx, cache.ViewCountPattern, 100)
+	if err != nil {
+		return 0, err
+	}
+
+	synced := 0
+	for _, key := range keys {
+		// key 格式: "view_count:<article_id>"
+		articleID := key[len("view_count:"):]
+		if articleID == "" {
+			continue
+		}
+
+		count, err := r.redis.GetInt64(ctx, key)
+		if err != nil || count <= 0 {
+			continue
+		}
+
+		// 批量 +count 到 DB
+		err = r.db.Model(&models.Article{}).Where("id = ?", articleID).
+			Update("view_count", gorm.Expr("view_count + ?", count)).Error
+		if err != nil {
+			continue // 跳过失败的文章，下次重试
+		}
+
+		// 清除已同步的 Redis 计数
+		r.redis.Del(ctx, key)
+		// 清除文章缓存（view_count 变了）
+		r.redis.Del(ctx, cache.ArticleKey(articleID))
+		synced++
+	}
+
+	return synced, nil
 }
 
 // UpdateStats 更新统计数据（点赞数、评论数）
