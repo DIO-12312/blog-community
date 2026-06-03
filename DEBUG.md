@@ -70,3 +70,18 @@ db.AutoMigrate(&models.Article{}, &models.Category{})
 **根因**: notification-service 只有 MQ 消费者，没有 HTTP 服务器。
 
 **修复** (`services/notification-service/main.go`): 添加 Gin HTTP 服务器监听 `:8004`，暴露通知相关路由。
+
+---
+
+## 7. Elasticsearch 未创建索引
+
+**现象**: 启动后 ES 中没有 `articles` 索引，搜索功能不可用。
+
+**根因**:
+- ES 官方镜像不带 `analysis-ik` 中文分词插件，索引创建时指定 `ik_max_word` 分析器导致失败，只打了 warning 日志
+- ES 启动慢，search-service 用 `service_started` 时 ES 还没就绪
+
+**修复**:
+- 创建 `elasticsearch/Dockerfile`，从 URL 安装 ik 插件
+- `docker-compose.yml`: ES 改用自定义构建，添加 healthcheck，search-service 依赖改为 `service_healthy`
+- search-service 已有 `EnsureIndex()`，现在能正常执行
