@@ -14,7 +14,7 @@
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
-    <div v-if="!loading && articles.length === 0" class="empty">暂无文章</div>
+    <div v-if="!loading && (articles?.length || 0) === 0" class="empty">暂无文章</div>
 
     <!-- 分页 -->
     <div class="pagination" v-if="total > size">
@@ -44,7 +44,7 @@ async function fetchArticles() {
   loading.value = true
   try {
     const res: any = await articleApi.getList(page.value, size.value)
-    articles.value = res.data
+    articles.value = res.data || []
     total.value = res.pagination?.total || 0
   } finally {
     loading.value = false
@@ -59,7 +59,7 @@ async function handleSearch() {
   loading.value = true
   try {
     const res: any = await searchApi.search(searchQuery.value, 1, size.value)
-    articles.value = res.data
+    articles.value = res.data || []
     total.value = res.pagination?.total || 0
   } finally {
     loading.value = false
