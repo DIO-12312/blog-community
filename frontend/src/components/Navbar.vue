@@ -7,10 +7,6 @@
     <div class="nav-right">
       <template v-if="userStore.isLoggedIn">
         <router-link to="/editor" class="nav-link">写文章</router-link>
-        <router-link to="/notifications" class="nav-link">
-          通知
-          <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
-        </router-link>
         <span class="nav-user">{{ userStore.userInfo?.username }}</span>
         <button @click="handleLogout" class="btn-logout">退出</button>
       </template>
@@ -23,34 +19,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { notificationApi } from '@/api'
 
 const router = useRouter()
 const userStore = useUserStore()
-const unreadCount = ref(0)
-
-async function fetchUnreadCount() {
-  try {
-    const res: any = await notificationApi.getUnreadCount()
-    unreadCount.value = res.data.count
-  } catch {
-    // 静默失败
-  }
-}
 
 function handleLogout() {
   userStore.logout()
   router.push('/')
 }
-
-onMounted(() => {
-  if (userStore.isLoggedIn) {
-    fetchUnreadCount()
-  }
-})
 </script>
 
 <style scoped>
