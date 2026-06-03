@@ -85,3 +85,15 @@ db.AutoMigrate(&models.Article{}, &models.Category{})
 - 创建 `elasticsearch/Dockerfile`，从 URL 安装 ik 插件
 - `docker-compose.yml`: ES 改用自定义构建，添加 healthcheck，search-service 依赖改为 `service_healthy`
 - search-service 已有 `EnsureIndex()`，现在能正常执行
+
+---
+
+## 8. 前端文章列表/搜索结果不显示
+
+**现象**: `HomeView.vue` 报错 `Cannot read properties of undefined (reading 'length')`，列表为空。
+
+**根因**: API 返回 `{ data: [...], pagination: { total } }`，经 axios 响应拦截器解析后，前端误用 `res.data.list` 取值。实际 `res.data` 就是数组本身，`res.pagination.total` 才是总数。
+
+**修复** (`frontend/src/views/HomeView.vue`):
+- `res.data.list` → `res.data`
+- `res.data.total` → `res.pagination?.total || 0`
