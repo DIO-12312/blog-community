@@ -16,6 +16,8 @@ var services = map[string]string{
 	"user":        "http://localhost:8001",
 	"article":     "http://localhost:8002",
 	"interaction": "http://localhost:8003",
+	"search":      "http://localhost:8005",
+	"audit":       "http://localhost:8006",
 }
 
 // SetupRoutes 设置所有路由
@@ -40,6 +42,9 @@ func setupPublicRoutes(router *gin.Engine) {
 	// 用户注册、登录
 	router.POST("/api/users/register", proxyTo("user"))
 	router.POST("/api/users/login", proxyTo("user"))
+
+	// 搜索（可匿名查看）
+	router.GET("/api/search", middleware.OptionalAuthMiddleware(), proxyTo("search"))
 
 	// 文章列表（可匿名查看）
 	router.GET("/api/articles", middleware.OptionalAuthMiddleware(), proxyTo("article"))
@@ -78,6 +83,9 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 	router.DELETE("/api/collections/:article_id", proxyTo("interaction"))
 	router.GET("/api/collections/status", proxyTo("interaction"))
 	router.GET("/api/collections", proxyTo("interaction"))
+
+	// 审计日志
+	router.GET("/api/audit-logs", proxyTo("audit"))
 
 }
 
