@@ -34,7 +34,9 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
 
   elasticsearch:
-    image: elasticsearch:8.11.0
+    build:
+      context: ./backend
+      dockerfile: elasticsearch/Dockerfile
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
@@ -43,6 +45,11 @@ services:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # ===== 微服务 =====
   api-gateway:
@@ -152,7 +159,7 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
       elasticsearch:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_started
 
