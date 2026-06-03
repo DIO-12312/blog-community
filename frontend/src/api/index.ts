@@ -55,6 +55,9 @@ export const articleApi = {
   delete(id: string) {
     return api.delete(`/articles/${id}`)
   },
+  publish(id: string) {
+    return api.post(`/articles/${id}/publish`)
+  },
 }
 
 // ===== 评论 API =====

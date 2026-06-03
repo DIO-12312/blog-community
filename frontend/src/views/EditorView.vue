@@ -76,11 +76,12 @@ async function handleSubmit() {
         content: content.value,
       })
     } else {
-      await articleApi.create({
+      const res: any = await articleApi.create({
         title: title.value,
         content: content.value,
         category_id: categoryId.value,
       })
+      await articleApi.publish(res.data.id)
     }
     router.push('/')
   } catch (e: any) {
