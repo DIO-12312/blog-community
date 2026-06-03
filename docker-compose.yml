@@ -126,6 +126,8 @@ services:
     build:
       context: ./backend
       dockerfile: services/notification-service/Dockerfile
+    ports:
+      - "8004:8004"
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306

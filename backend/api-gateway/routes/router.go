@@ -13,11 +13,12 @@ import (
 
 // ServiceRegistry 服务注册表
 var services = map[string]string{
-	"user":        "http://localhost:8001",
-	"article":     "http://localhost:8002",
-	"interaction": "http://localhost:8003",
-	"search":      "http://localhost:8005",
-	"audit":       "http://localhost:8006",
+	"user":        "http://user-service:8001",
+	"article":     "http://content-service:8002",
+	"interaction": "http://interaction-service:8003",
+	"notification": "http://notification-service:8004",
+	"search":       "http://search-service:8005",
+	"audit":        "http://audit-service:8006",
 }
 
 // SetupRoutes 设置所有路由
@@ -46,6 +47,9 @@ func setupPublicRoutes(router *gin.Engine) {
 	// 搜索（可匿名查看）
 	router.GET("/api/search", middleware.OptionalAuthMiddleware(), proxyTo("search"))
 
+	// 用户信息查询（无需认证）
+	router.GET("/api/users", proxyTo("user"))
+
 	// 文章列表（可匿名查看）
 	router.GET("/api/articles", middleware.OptionalAuthMiddleware(), proxyTo("article"))
 	router.GET("/api/articles/:id", middleware.OptionalAuthMiddleware(), proxyTo("article"))
@@ -55,7 +59,6 @@ func setupPublicRoutes(router *gin.Engine) {
 // setupPrivateRoutes 设置需要认证的路由
 func setupPrivateRoutes(router *gin.RouterGroup) {
 	// 用户相关
-	router.GET("/api/users", proxyTo("user"))
 	router.PUT("/api/users/:id", proxyTo("user"))
 	router.POST("/api/users/:id/follow", proxyTo("user"))
 	router.DELETE("/api/users/:id/follow", proxyTo("user"))
@@ -83,6 +86,12 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 	router.DELETE("/api/collections/:article_id", proxyTo("interaction"))
 	router.GET("/api/collections/status", proxyTo("interaction"))
 	router.GET("/api/collections", proxyTo("interaction"))
+
+	// 通知
+	router.GET("/api/notifications", proxyTo("notification"))
+	router.GET("/api/notifications/unread-count", proxyTo("notification"))
+	router.PUT("/api/notifications/:id/read", proxyTo("notification"))
+	router.PUT("/api/notifications/read-all", proxyTo("notification"))
 
 	// 审计日志
 	router.GET("/api/audit-logs", proxyTo("audit"))
