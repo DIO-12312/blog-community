@@ -98,3 +98,30 @@ db.AutoMigrate(&models.Article{}, &models.Category{})
 - `res.data.list` → `res.data || []`
 - `res.data.total` → `res.pagination?.total || 0`
 - 模板中 `articles.length` → `articles?.length || 0`，防止 null 崩溃
+
+---
+
+## 9. 文章发布后仍是草稿状态
+
+**现象**: 前端点击"发布"按钮后，数据库文章状态仍为 `draft`。
+
+**根因**: `POST /api/articles` 创建文章默认状态为 `draft`，需要再调用 `POST /api/articles/:id/publish` 才能发布。前端只调了 create 没调 publish。
+
+**修复** (`frontend/src/api/index.ts` + `frontend/src/views/EditorView.vue`):
+- api 层新增 `articleApi.publish(id)`
+- EditorView 创建成功后自动调用 publish
+
+---
+
+## 10. 评论有数据但前端不显示用户名
+
+**现象**: 数据库有评论但前端不显示，用户名也是空的。
+
+**根因**:
+- CommentList.vue 同样用 `res.data.list` 解析 API 响应（应为 `res.data`）
+- Comment 模型只存 `user_id` 没有 `username`，查询返回的 username 始终为空
+
+**修复**:
+- CommentList.vue: `res.data.list` → `res.data`，`res.data.total` → `res.pagination?.total`
+- Comment 模型添加 `Username` 字段，handler 创建评论时从 `X-Username` header 读取
+- `GetByArticle` 响应填充 username
