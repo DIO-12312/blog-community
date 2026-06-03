@@ -95,5 +95,6 @@ db.AutoMigrate(&models.Article{}, &models.Category{})
 **根因**: API 返回 `{ data: [...], pagination: { total } }`，经 axios 响应拦截器解析后，前端误用 `res.data.list` 取值。实际 `res.data` 就是数组本身，`res.pagination.total` 才是总数。
 
 **修复** (`frontend/src/views/HomeView.vue`):
-- `res.data.list` → `res.data`
+- `res.data.list` → `res.data || []`
 - `res.data.total` → `res.pagination?.total || 0`
+- 模板中 `articles.length` → `articles?.length || 0`，防止 null 崩溃
