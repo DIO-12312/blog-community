@@ -44,8 +44,8 @@ async function fetchArticles() {
   loading.value = true
   try {
     const res: any = await articleApi.getList(page.value, size.value)
-    articles.value = res.data.list
-    total.value = res.data.total
+    articles.value = res.data
+    total.value = res.pagination?.total || 0
   } finally {
     loading.value = false
   }
@@ -59,8 +59,8 @@ async function handleSearch() {
   loading.value = true
   try {
     const res: any = await searchApi.search(searchQuery.value, 1, size.value)
-    articles.value = res.data.list
-    total.value = res.data.total
+    articles.value = res.data
+    total.value = res.pagination?.total || 0
   } finally {
     loading.value = false
   }
