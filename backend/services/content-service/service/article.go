@@ -114,7 +114,7 @@ func (s *ArticleService) PublishArticle(ctx context.Context, articleID, authorID
 
 	article.Status = models.StatusPublished
 	now := time.Now()
-	article.PublishedAt = now
+	article.PublishedAt = &now
 	article.UpdatedAt = now
 
 	if err := s.repo.Update(ctx, article); err != nil {

@@ -115,12 +115,12 @@ func proxyTo(serviceName string) gin.HandlerFunc {
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
 
-			// 转发用户信息 Header
-			if userID := c.GetHeader("X-User-ID"); userID != "" {
-				req.Header.Set("X-User-ID", userID)
+			// 转发用户信息 Header（从 Gin 上下文中读取）
+			if userID, exists := c.Get("userID"); exists {
+				req.Header.Set("X-User-ID", userID.(string))
 			}
-			if username := c.GetHeader("X-Username"); username != "" {
-				req.Header.Set("X-Username", username)
+			if username, exists := c.Get("username"); exists {
+				req.Header.Set("X-Username", username.(string))
 			}
 		}
 

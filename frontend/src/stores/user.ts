@@ -13,13 +13,16 @@ export const useUserStore = defineStore('user', () => {
   // 登录
   async function login(username: string, password: string) {
     const res: any = await userApi.login({ username, password })
-    token.value = res.data.token
-    localStorage.setItem('token', res.data.token)
+    const newToken: string = res.data.token
 
-    // 解析 JWT 获取用户 ID
-    const payload = JSON.parse(atob(res.data.token.split('.')[1]))
+    // 先解析 JWT 获取用户 ID，再拉取用户信息
+    const payload = JSON.parse(atob(newToken.split('.')[1]))
     const profile: any = await userApi.getProfile(payload.user_id)
     userInfo.value = profile.data
+
+    // 确认都成功后再保存 token
+    token.value = newToken
+    localStorage.setItem('token', newToken)
   }
 
   // 注册

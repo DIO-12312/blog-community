@@ -59,9 +59,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 4. 自定义字段头部注入
-		c.Header("X-User-ID", claims.UserID)
-		c.Header("X-Username", claims.UserName)
+		// 4. 注入用户信息到上下文（供代理转发给下游服务）
+		c.Set("userID", claims.UserID)
+		c.Set("username", claims.UserName)
 
 		// 5. 继续处理请求
 		c.Next()
@@ -99,9 +99,9 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 4. 自定义字段头部注入
-		c.Header("X-User-ID", claims.UserID)
-		c.Header("X-Username", claims.UserName)
+		// 4. 注入用户信息到上下文（供代理转发给下游服务）
+		c.Set("userID", claims.UserID)
+		c.Set("username", claims.UserName)
 
 		// 5. 继续处理请求
 		c.Next()

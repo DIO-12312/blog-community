@@ -6,6 +6,7 @@ import (
 	"blog-community/content-service/service"
 	"blog-community/shared/cache"
 	"blog-community/shared/events"
+	"blog-community/shared/models"
 	"fmt"
 	"log"
 	"os"
@@ -37,6 +38,7 @@ func main() {
 	}
 
 	// 2. 执行数据库迁移
+	db.AutoMigrate(&models.Article{}, &models.Category{})
 
 	// 3. 连接 Redis
 	redisAddr := getEnv("REDIS_ADDR", "redis:6379")

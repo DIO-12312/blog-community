@@ -5,7 +5,7 @@ import "time"
 // Article 文章模型
 type Article struct {
 	BaseModel
-	PublishedAt  time.Time `json:"published_at"`
+	PublishedAt  *time.Time `json:"published_at"`
 	AuthorID     string    `gorm:"index:idx_articles_author_id;size:36" json:"author_id"`
 	Title        string    `gorm:"size:200" json:"title"`
 	Summary      string    `gorm:"type:text" json:"summary"`

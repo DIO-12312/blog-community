@@ -20,7 +20,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
     }
     return Promise.reject(error.response?.data || error)
   }
@@ -35,7 +34,7 @@ export const userApi = {
     return api.post('/users/login', data)
   },
   getProfile(id: string) {
-    return api.get(`/users/${id}`)
+    return api.get('/users', { params: { id } })
   },
 }
 
