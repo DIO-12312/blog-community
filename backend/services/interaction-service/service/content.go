@@ -22,7 +22,7 @@ func NewCommentService(repo *repository.CommentRepository, db *gorm.DB, publishe
 }
 
 // Create 创建评论
-func (s *CommentService) Create(articleID, userID, content string, parentID *string) (*models.Comment, error) {
+func (s *CommentService) Create(articleID, userID, username, content string, parentID *string) (*models.Comment, error) {
 	// 如果是回复，检查父评论是否存在
 	if parentID != nil {
 		parent, err := s.repo.GetByID(*parentID)
@@ -38,6 +38,7 @@ func (s *CommentService) Create(articleID, userID, content string, parentID *str
 	comment := &models.Comment{
 		ArticleID: articleID,
 		UserID:    userID,
+			Username:  username,
 		Content:   content,
 		ParentID:  parentID,
 	}

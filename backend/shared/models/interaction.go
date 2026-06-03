@@ -7,6 +7,7 @@ type Comment struct {
 	BaseModel
 	ArticleID string  `gorm:"index;size:36" json:"article_id"`
 	UserID    string  `gorm:"index;size:36" json:"user_id"`
+	Username  string  `gorm:"size:100" json:"username"`
 	Content   string  `gorm:"type:text" json:"content"`
 	ParentID  *string `gorm:"size:36" json:"parent_id"` // 指针类型，允许为 nil
 }

@@ -22,6 +22,7 @@ func NewCommentHandler(service *service.CommentService) *CommentHandler {
 func (h *CommentHandler) Create(c *gin.Context) {
 	articleID := c.Param("id")
 	userID := c.GetHeader("X-User-ID")
+	username := c.GetHeader("X-Username")
 
 	var req struct {
 		Content  string  `json:"content" binding:"required,min=1"`
@@ -32,7 +33,7 @@ func (h *CommentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.service.Create(articleID, userID, req.Content, req.ParentID)
+	comment, err := h.service.Create(articleID, userID, username, req.Content, req.ParentID)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -74,6 +75,7 @@ func (h *CommentHandler) GetByArticle(c *gin.Context) {
 				ID:        child.ID,
 				ArticleID: child.ArticleID,
 				UserID:    child.UserID,
+				Username:  child.Username,
 				Content:   child.Content,
 				ParentID:  child.ParentID,
 				CreatedAt: child.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -88,6 +90,7 @@ func (h *CommentHandler) GetByArticle(c *gin.Context) {
 			ID:        top.ID,
 			ArticleID: top.ArticleID,
 			UserID:    top.UserID,
+				Username:  top.Username,
 			Content:   top.Content,
 			ParentID:  top.ParentID,
 			CreatedAt: top.CreatedAt.Format("2006-01-02 15:04:05"),

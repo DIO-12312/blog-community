@@ -89,8 +89,8 @@ async function fetchComments() {
   loading.value = true
   try {
     const res: any = await commentApi.getByArticle(props.articleId)
-    comments.value = res.data.list || []
-    total.value = res.data.total || 0
+    comments.value = res.data || []
+    total.value = res.pagination?.total || 0
   } finally {
     loading.value = false
   }
