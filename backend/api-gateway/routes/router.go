@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"net/http"
 	"net/url"
 
 	"blog-community/api-gateway/middleware"
@@ -13,12 +12,24 @@ import (
 
 // ServiceRegistry 服务注册表
 var services = map[string]string{
-	"user":        "http://user-service:8001",
-	"article":     "http://content-service:8002",
-	"interaction": "http://interaction-service:8003",
+	"user":         "http://user-service:8001",
+	"article":      "http://content-service:8002",
+	"interaction":  "http://interaction-service:8003",
 	"notification": "http://notification-service:8004",
 	"search":       "http://search-service:8005",
 	"audit":        "http://audit-service:8006",
+}
+
+// proxyCache 预创建每个服务的反向代理（单例，复用 HTTP 连接池）
+var proxyCache = initProxyCache()
+
+func initProxyCache() map[string]*httputil.ReverseProxy {
+	cache := make(map[string]*httputil.ReverseProxy, len(services))
+	for name, urlStr := range services {
+		target, _ := url.Parse(urlStr)
+		cache[name] = httputil.NewSingleHostReverseProxy(target)
+	}
+	return cache
 }
 
 // SetupRoutes 设置所有路由
@@ -35,7 +46,6 @@ func SetupRoutes(router *gin.Engine) {
 	authenticated := router.Group("/")
 	authenticated.Use(middleware.AuthMiddleware())
 	setupPrivateRoutes(authenticated)
-
 }
 
 // setupPublicRoutes 设置公开路由
@@ -95,36 +105,28 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 
 	// 审计日志
 	router.GET("/api/audit-logs", proxyTo("audit"))
-
 }
 
-// proxyTo 返回一个反向代理处理器
+// proxyTo 返回一个反向代理处理器（复用全局单例 proxy，共享 HTTP 连接池）
 func proxyTo(serviceName string) gin.HandlerFunc {
 	targetURL := services[serviceName]
+	target, _ := url.Parse(targetURL)
+	proxy := proxyCache[serviceName]
 
 	return func(c *gin.Context) {
-		//将字符串形式的服务地址（如"http://localhost:8001"）解析为 url.URL 结构体
-		target, _ := url.Parse(targetURL)
+		// 修改当前请求的目标地址（c.Request 是每次请求独立的）
+		c.Request.URL.Scheme = target.Scheme
+		c.Request.URL.Host = target.Host
+		c.Request.Host = target.Host
 
-		// 创建反向代理
-		proxy := httputil.NewSingleHostReverseProxy(target)
-
-		// 修改请求，转发认证信息
-		// 在每次请求转发前被调用，用来修改即将发往后端的*http.Request。
-		originalDirector := proxy.Director
-		proxy.Director = func(req *http.Request) {
-			originalDirector(req)
-
-			// 转发用户信息 Header（从 Gin 上下文中读取）
-			if userID, exists := c.Get("userID"); exists {
-				req.Header.Set("X-User-ID", userID.(string))
-			}
-			if username, exists := c.Get("username"); exists {
-				req.Header.Set("X-Username", username.(string))
-			}
+		// 转发用户认证信息到下游
+		if userID, exists := c.Get("userID"); exists {
+			c.Request.Header.Set("X-User-ID", userID.(string))
+		}
+		if username, exists := c.Get("username"); exists {
+			c.Request.Header.Set("X-Username", username.(string))
 		}
 
-		// 代理请求
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }

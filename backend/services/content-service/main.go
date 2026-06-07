@@ -7,9 +7,11 @@ import (
 	"blog-community/shared/cache"
 	"blog-community/shared/events"
 	"blog-community/shared/models"
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
@@ -72,7 +74,10 @@ func main() {
 	router.POST("/api/articles/:id/publish", h.PublishArticle)
 	router.DELETE("/api/articles/:id", h.DeleteArticle)
 
-	// 6. 启动服务
+	// 6. 启动浏览计数定期同步任务（每 5 分钟将 Redis 计数写入 MySQL）
+	svc.StartViewCountSyncWorker(context.Background(), 5*time.Minute)
+
+	// 7. 启动服务
 	log.Println("Article service listening on :8002")
 	router.Run(":8002")
 }

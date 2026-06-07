@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"blog-community/content-service/repository"
@@ -145,17 +146,45 @@ func (s *ArticleService) DeleteArticle(ctx context.Context, articleID, authorID 
 	return s.repo.Delete(ctx, articleID)
 }
 
-// GetArticleDetail 获取文章详情（增加浏览次数）
+// GetArticleDetail 获取文章详情（增加浏览次数，使用 Redis 避免 DB 行锁）
 func (s *ArticleService) GetArticleDetail(ctx context.Context, articleID string) (*models.Article, error) {
 	article, err := s.repo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 异步增加浏览次数（可以用 goroutine）
+	// Redis 原子递增（无锁，高性能）
 	go s.repo.IncrementViewCount(ctx, articleID)
 
+	// 合并 Redis 中的实时计数到返回结果
+	if redisCount, err := s.repo.GetViewCount(ctx, articleID); err == nil && redisCount > 0 {
+		article.ViewCount += redisCount
+	}
+
 	return article, nil
+}
+
+// StartViewCountSyncWorker 启动定期同步任务：将 Redis 中的浏览次数批量写入 MySQL
+func (s *ArticleService) StartViewCountSyncWorker(ctx context.Context, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				n, err := s.repo.SyncViewCounts(ctx)
+				if err != nil {
+					log.Printf("同步浏览计数失败: %v", err)
+				} else if n > 0 {
+					log.Printf("同步浏览计数完成: %d 篇文章", n)
+				}
+			case <-ctx.Done():
+				log.Println("浏览计数同步任务已停止")
+				return
+			}
+		}
+	}()
 }
 
 // ListArticles 列出文章

@@ -125,3 +125,71 @@ db.AutoMigrate(&models.Article{}, &models.Category{})
 - CommentList.vue: `res.data.list` → `res.data`，`res.data.total` → `res.pagination?.total`
 - Comment 模型添加 `Username` 字段，handler 创建评论时从 `X-Username` header 读取
 - `GetByArticle` 响应填充 username
+
+---
+
+## 11. API 网关高并发时大量 502
+
+**现象**: 压测时 c=100 即产生 502 Bad Gateway，c=500 时 502 比例超过 80%。直连后端则无此问题。
+
+**根因**: `router.go` 的 `proxyTo()` 中每次请求都调用 `httputil.NewSingleHostReverseProxy(target)`，创建新的 HTTP Transport 和连接池。每个请求用完即丢弃，连接无法复用，高并发时端口/连接耗尽。
+
+**修复** (`api-gateway/routes/router.go`):
+- 新增全局 `proxyCache` map，启动时预创建每个服务的单例反向代理
+- `proxyTo` 直接复用缓存代理，仅设置 per-request 的 header 和 URL
+
+```go
+// 优化前: 每请求创建新 proxy
+proxy := httputil.NewSingleHostReverseProxy(target)
+
+// 优化后: 全局单例复用连接池
+var proxyCache = initProxyCache()  // 启动时创建
+proxy := proxyCache[serviceName]   // 直接复用
+```
+
+**效果**: 网关损耗从 50% 降至接近 0%，502 错误归零。
+
+---
+
+## 12. view_count 行级锁 — 文章详情高并发退化
+
+**现象**: `GET /api/articles/:id` 高并发时 DB 返回 `Error 1040: Too many connections`，单次请求延迟 >2s，502 错误频繁。
+
+**根因**: `IncrementViewCount` 每次执行 `UPDATE articles SET view_count = view_count + 1 WHERE id = ?`。对同一文章的高并发请求竞争同一行的排他锁，UPDATE 串行化，每个耗时 ~2s，连接全部堆积等待。
+
+**修复** (`services/content-service/repository/article.go` + `service/article.go` + `main.go` + `shared/cache/redis.go` + `shared/cache/keys.go`):
+- `IncrementViewCount`: DB UPDATE → `Redis INCR view_count:id`（内存原子操作，<1ms）
+- `GetArticleDetail`: 合并 `DB基础值 + Redis实时增量` 作为返回的 view_count
+- 新增 `SyncViewCounts`: 使用 Redis SCAN 扫描所有 `view_count:*` 键，批量写入 MySQL 后清除
+- 新增 `StartViewCountSyncWorker`: 每 5 分钟自动执行同步
+- `RedisClient` 新增 `GetInt64`、`ScanKeys` 方法
+
+**效果**: 文章详情 QPS 从 807 提升至 21,887+，502 和 Error 1040 归零。
+
+---
+
+## 13. MySQL max_connections 不足
+
+**现象**: 高并发时多个微服务报 `Error 1040: Too many connections`。
+
+**根因**: MySQL 默认 `max_connections=151`。6 个微服务各建连接池，高并发时总连接数超出上限。
+
+**修复** (`docker-compose.yml`):
+```yaml
+mysql:
+  image: mysql:8.0
+  command: --max_connections=500
+```
+
+---
+
+## 14. 通知表缺少复合索引 — 高并发通知查询退化
+
+**现象**: 10,000+ 条通知后，`GET /api/notifications` 查询延迟 >6s。
+
+**根因**: `SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 10` 只有单列 `idx_notifications_user_id` 索引，需对所有匹配行做 filesort。
+
+**修复**:
+```sql
+CREATE INDEX idx_notifications_user_created ON notifications(user_id, created_at DESC);
+```

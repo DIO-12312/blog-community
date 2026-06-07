@@ -106,6 +106,28 @@ func (r *RedisClient) HDel(ctx context.Context, key string, fields ...string) er
 	return r.Client.HDel(ctx, key, fields...).Err()
 }
 
+// GetInt64 获取 int64 值（不存在时返回 0）
+func (r *RedisClient) GetInt64(ctx context.Context, key string) (int64, error) {
+	val, err := r.Client.Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil
+	}
+	return val, err
+}
+
+// ScanKeys 使用 SCAN 命令遍历匹配的键，返回所有匹配的键名
+func (r *RedisClient) ScanKeys(ctx context.Context, pattern string, count int64) ([]string, error) {
+	var keys []string
+	iter := r.Client.Scan(ctx, 0, pattern, count).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
 // Close 关闭连接
 func (r *RedisClient) Close() error {
 	return r.Client.Close()
