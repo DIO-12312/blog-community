@@ -3,6 +3,7 @@ package cache
 import (
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestGetSingleFlight(t *testing.T) {
@@ -11,11 +12,12 @@ func TestGetSingleFlight(t *testing.T) {
 	}
 	Ans := map[string]string{"alice": "sum"}
 	Do := func(key string) (interface{}, error) {
+		time.Sleep(10 * time.Millisecond) // 模拟真实耗时操作
 		return Ans[key], nil
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(key string) {
 			defer wg.Done()
