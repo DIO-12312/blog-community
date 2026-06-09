@@ -197,6 +197,16 @@ func (s *ArticleService) ListArticlesByCategory(category string, page, size int)
 	return s.repo.ListByCategory(category, page, size)
 }
 
+// ListAllArticles 管理员获取所有文章（含已删除）
+func (s *ArticleService) ListAllArticles(page, size int) ([]models.Article, int64, error) {
+	return s.repo.ListAllArticles(page, size)
+}
+
+// AdminDeleteArticle 管理员删除任意文章
+func (s *ArticleService) AdminDeleteArticle(ctx context.Context, articleID string) error {
+	return s.repo.Delete(ctx, articleID)
+}
+
 // ListMyArticles 列出当前用户的文章
 func (s *ArticleService) ListMyArticles(authorID string, page, size int) ([]models.Article, int64, error) {
 	return s.repo.ListByAuthor(authorID, page, size)

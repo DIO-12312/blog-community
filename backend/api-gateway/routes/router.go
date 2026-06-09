@@ -117,6 +117,10 @@ func setupAdminRoutes(router *gin.RouterGroup) {
 	router.GET("/users", proxyTo("user"))
 	router.PUT("/users/:id/ban", proxyTo("user"))
 	router.PUT("/users/:id/unban", proxyTo("user"))
+
+	// 文章管理
+	router.GET("/articles", proxyTo("article"))
+	router.DELETE("/articles/:id", proxyTo("article"))
 }
 
 // proxyTo 返回一个反向代理处理器（复用全局单例 proxy，共享 HTTP 连接池）

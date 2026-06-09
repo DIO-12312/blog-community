@@ -77,6 +77,10 @@ func main() {
 	router.POST("/api/articles/:id/publish", h.PublishArticle)
 	router.DELETE("/api/articles/:id", h.DeleteArticle)
 
+	// 管理员路由
+	router.GET("/api/admin/articles", h.ListAllArticles)
+	router.DELETE("/api/admin/articles/:id", h.AdminDeleteArticle)
+
 	// 6. 启动浏览计数定期同步任务（每 5 分钟将 Redis 计数写入 MySQL）
 	svc.StartViewCountSyncWorker(context.Background(), 5*time.Minute)
 

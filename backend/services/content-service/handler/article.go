@@ -143,6 +143,28 @@ func (h *ArticleHandler) DeleteArticle(c *gin.Context) {
 	utils.Success(c, http.StatusOK, "删除成功", nil)
 }
 
+// ListAllArticles 管理员获取所有文章 GET /api/admin/articles
+func (h *ArticleHandler) ListAllArticles(c *gin.Context) {
+	page, size := parsePagination(c)
+	articles, total, err := h.service.ListAllArticles(page, size)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "获取文章列表失败")
+		return
+	}
+	utils.Paginated(c, articles, "获取成功", total, page, size)
+}
+
+// AdminDeleteArticle 管理员删除任意文章 DELETE /api/admin/articles/:id
+func (h *ArticleHandler) AdminDeleteArticle(c *gin.Context) {
+	articleID := c.Param("id")
+	ctx := c.Request.Context()
+	if err := h.service.AdminDeleteArticle(ctx, articleID); err != nil {
+		utils.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, "删除成功", nil)
+}
+
 // parsePagination 解析分页参数
 func parsePagination(c *gin.Context) (int, int) {
 	page := 1

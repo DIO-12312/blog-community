@@ -129,6 +129,12 @@ export const adminApi = {
   unbanUser(id: string) {
     return api.put(`/admin/users/${id}/unban`)
   },
+  getArticles(page = 1, size = 20) {
+    return api.get('/admin/articles', { params: { page, size } })
+  },
+  deleteArticle(id: string) {
+    return api.delete(`/admin/articles/${id}`)
+  },
 }
 
 export default api

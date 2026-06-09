@@ -3,9 +3,9 @@
     <h1>管理员面板</h1>
 
     <div class="tabs">
-      <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">用户管理</button>
-      <button :class="{ active: activeTab === 'articles' }" @click="activeTab = 'articles'">文章管理</button>
-      <button :class="{ active: activeTab === 'comments' }" @click="activeTab = 'comments'">评论管理</button>
+      <button :class="{ active: activeTab === 'users' }" @click="switchTab('users')">用户管理</button>
+      <button :class="{ active: activeTab === 'articles' }" @click="switchTab('articles')">文章管理</button>
+      <button :class="{ active: activeTab === 'comments' }" @click="switchTab('comments')">评论管理</button>
     </div>
 
     <!-- 用户管理 -->
@@ -63,9 +63,45 @@
       </div>
     </div>
 
-    <!-- 文章管理（后续功能） -->
+    <!-- 文章管理 -->
     <div v-else-if="activeTab === 'articles'" class="tab-content">
-      <p class="placeholder">文章管理功能即将推出</p>
+      <h2>文章列表</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th>作者</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="article in articles" :key="article.id">
+            <td class="col-title">{{ article.title }}</td>
+            <td>{{ article.author_id }}</td>
+            <td>
+              <span :class="article.deleted_at ? 'badge-deleted' : article.status === 'published' ? 'badge-active' : 'badge-draft'">
+                {{ article.deleted_at ? '已删除' : article.status === 'published' ? '已发布' : '草稿' }}
+              </span>
+            </td>
+            <td>{{ formatDate(article.created_at) }}</td>
+            <td>
+              <button
+                class="btn-delete"
+                @click="handleDeleteArticle(article.id)"
+              >
+                删除
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination" v-if="articleTotal > articleSize">
+        <button :disabled="articlePage <= 1" @click="changeArticlePage(articlePage - 1)">上一页</button>
+        <span>{{ articlePage }} / {{ Math.ceil(articleTotal / articleSize) }}</span>
+        <button :disabled="articlePage >= Math.ceil(articleTotal / articleSize)" @click="changeArticlePage(articlePage + 1)">下一页</button>
+      </div>
     </div>
 
     <!-- 评论管理（后续功能） -->
@@ -80,6 +116,12 @@ import { ref, onMounted } from 'vue'
 import { adminApi } from '@/api'
 
 const activeTab = ref('users')
+
+function switchTab(tab: string) {
+  activeTab.value = tab
+  if (tab === 'users') fetchUsers()
+  else if (tab === 'articles') fetchArticles()
+}
 
 // 用户管理
 const users = ref<any[]>([])
@@ -117,6 +159,37 @@ async function handleUnban(id: string) {
   try {
     await adminApi.unbanUser(id)
     fetchUsers()
+  } catch (e: any) {
+    alert(e?.message || '操作失败')
+  }
+}
+
+// 文章管理
+const articles = ref<any[]>([])
+const articlePage = ref(1)
+const articleSize = 20
+const articleTotal = ref(0)
+
+async function fetchArticles() {
+  try {
+    const res: any = await adminApi.getArticles(articlePage.value, articleSize)
+    articles.value = res.data || []
+    articleTotal.value = res.pagination?.total || 0
+  } catch {
+    alert('获取文章列表失败')
+  }
+}
+
+function changeArticlePage(page: number) {
+  articlePage.value = page
+  fetchArticles()
+}
+
+async function handleDeleteArticle(id: string) {
+  if (!confirm('确定要删除该文章吗？')) return
+  try {
+    await adminApi.deleteArticle(id)
+    fetchArticles()
   } catch (e: any) {
     alert(e?.message || '操作失败')
   }
@@ -204,6 +277,10 @@ h2 {
 .badge-admin { color: #e67e22; font-weight: 600; }
 .badge-active { color: #27ae60; }
 .badge-banned { color: #e74c3c; font-weight: 600; }
+.badge-deleted { color: #e74c3c; }
+.badge-draft { color: #95a5a6; }
+
+.col-title { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .btn-ban {
   padding: 4px 14px;
@@ -228,6 +305,18 @@ h2 {
 }
 
 .btn-unban:hover { background: #219a52; }
+
+.btn-delete {
+  padding: 4px 14px;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-delete:hover { background: #c0392b; }
 
 .pagination {
   display: flex;
