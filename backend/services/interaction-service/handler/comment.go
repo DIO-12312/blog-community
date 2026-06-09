@@ -103,3 +103,25 @@ func (h *CommentHandler) GetByArticle(c *gin.Context) {
 
 	utils.Paginated(c, result, "ok", total, page, size)
 }
+
+// AdminDelete 管理员强制删除评论 DELETE /api/admin/comments/:id
+func (h *CommentHandler) AdminDelete(c *gin.Context) {
+	commentID := c.Param("id")
+	if err := h.service.AdminDelete(commentID); err != nil {
+		utils.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, "删除成功", nil)
+}
+
+// ListAll 管理员获取所有评论 GET /api/admin/comments
+func (h *CommentHandler) ListAll(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	comments, total, err := h.service.ListAll(page, size)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "获取评论列表失败")
+		return
+	}
+	utils.Paginated(c, comments, "ok", total, page, size)
+}

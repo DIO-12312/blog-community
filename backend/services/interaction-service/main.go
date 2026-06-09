@@ -56,6 +56,10 @@ func main() {
 	router.DELETE("/api/comments/:id", commentH.Delete)
 	router.GET("/api/articles/:id/comments", commentH.GetByArticle)
 
+	// 管理员评论路由
+	router.GET("/api/admin/comments", commentH.ListAll)
+	router.DELETE("/api/admin/comments/:id", commentH.AdminDelete)
+
 	// 点赞路由
 	router.POST("/api/likes", likeH.Like)
 	router.DELETE("/api/likes", likeH.Unlike)

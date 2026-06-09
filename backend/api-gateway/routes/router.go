@@ -121,6 +121,10 @@ func setupAdminRoutes(router *gin.RouterGroup) {
 	// 文章管理
 	router.GET("/articles", proxyTo("article"))
 	router.DELETE("/articles/:id", proxyTo("article"))
+
+	// 评论管理
+	router.GET("/comments", proxyTo("interaction"))
+	router.DELETE("/comments/:id", proxyTo("interaction"))
 }
 
 // proxyTo 返回一个反向代理处理器（复用全局单例 proxy，共享 HTTP 连接池）

@@ -104,9 +104,48 @@
       </div>
     </div>
 
-    <!-- 评论管理（后续功能） -->
+    <!-- 评论管理 -->
     <div v-else-if="activeTab === 'comments'" class="tab-content">
-      <p class="placeholder">评论管理功能即将推出</p>
+      <h2>评论列表</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>评论内容</th>
+            <th>评论者</th>
+            <th>文章ID</th>
+            <th>状态</th>
+            <th>时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="comment in comments" :key="comment.id">
+            <td class="col-title">{{ comment.content }}</td>
+            <td>{{ comment.username }}</td>
+            <td>{{ comment.article_id }}</td>
+            <td>
+              <span :class="comment.deleted_at ? 'badge-deleted' : 'badge-active'">
+                {{ comment.deleted_at ? '已删除' : '正常' }}
+              </span>
+            </td>
+            <td>{{ formatDate(comment.created_at) }}</td>
+            <td>
+              <button
+                v-if="!comment.deleted_at"
+                class="btn-delete"
+                @click="handleDeleteComment(comment.id)"
+              >
+                删除
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination" v-if="commentTotal > commentSize">
+        <button :disabled="commentPage <= 1" @click="changeCommentPage(commentPage - 1)">上一页</button>
+        <span>{{ commentPage }} / {{ Math.ceil(commentTotal / commentSize) }}</span>
+        <button :disabled="commentPage >= Math.ceil(commentTotal / commentSize)" @click="changeCommentPage(commentPage + 1)">下一页</button>
+      </div>
     </div>
   </div>
 </template>
@@ -121,6 +160,7 @@ function switchTab(tab: string) {
   activeTab.value = tab
   if (tab === 'users') fetchUsers()
   else if (tab === 'articles') fetchArticles()
+  else if (tab === 'comments') fetchComments()
 }
 
 // 用户管理
@@ -190,6 +230,37 @@ async function handleDeleteArticle(id: string) {
   try {
     await adminApi.deleteArticle(id)
     fetchArticles()
+  } catch (e: any) {
+    alert(e?.message || '操作失败')
+  }
+}
+
+// 评论管理
+const comments = ref<any[]>([])
+const commentPage = ref(1)
+const commentSize = 20
+const commentTotal = ref(0)
+
+async function fetchComments() {
+  try {
+    const res: any = await adminApi.getComments(commentPage.value, commentSize)
+    comments.value = res.data || []
+    commentTotal.value = res.pagination?.total || 0
+  } catch {
+    alert('获取评论列表失败')
+  }
+}
+
+function changeCommentPage(page: number) {
+  commentPage.value = page
+  fetchComments()
+}
+
+async function handleDeleteComment(id: string) {
+  if (!confirm('确定要删除该评论吗？')) return
+  try {
+    await adminApi.deleteComment(id)
+    fetchComments()
   } catch (e: any) {
     alert(e?.message || '操作失败')
   }

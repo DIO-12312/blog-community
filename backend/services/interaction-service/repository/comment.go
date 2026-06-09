@@ -57,6 +57,15 @@ func (r *CommentRepository) GetChildrenByParentIDs(parentIDs []string) ([]models
 	return comments, err
 }
 
+// ListAll 管理员获取所有评论（含已删除）
+func (r *CommentRepository) ListAll(page, size int) ([]models.Comment, int64, error) {
+	var total int64
+	var comments []models.Comment
+	r.db.Unscoped().Model(&models.Comment{}).Count(&total)
+	err := r.db.Unscoped().Order("created_at DESC").Offset((page - 1) * size).Limit(size).Find(&comments).Error
+	return comments, total, err
+}
+
 // CountByArticle 获取文章评论总数
 func (r *CommentRepository) CountByArticle(articleID string) int64 {
 	var count int64

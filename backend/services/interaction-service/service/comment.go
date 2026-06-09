@@ -92,6 +92,22 @@ func (s *CommentService) Delete(commentID, userID string) error {
 	return s.repo.Delete(commentID)
 }
 
+// AdminDelete 管理员强制删除评论（绕过权限检查）
+func (s *CommentService) AdminDelete(commentID string) error {
+	if _, err := s.repo.GetByID(commentID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("评论不存在")
+		}
+		return err
+	}
+	return s.repo.Delete(commentID)
+}
+
+// ListAll 管理员获取所有评论
+func (s *CommentService) ListAll(page, size int) ([]models.Comment, int64, error) {
+	return s.repo.ListAll(page, size)
+}
+
 // GetByArticle 获取文章评论（树形结构）
 func (s *CommentService) GetByArticle(articleID string, page, size int) ([]models.Comment, []models.Comment, int64, error) {
 	// 第一步：获取顶层评论（分页）

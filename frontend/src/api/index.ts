@@ -135,6 +135,12 @@ export const adminApi = {
   deleteArticle(id: string) {
     return api.delete(`/admin/articles/${id}`)
   },
+  getComments(page = 1, size = 20) {
+    return api.get('/admin/comments', { params: { page, size } })
+  },
+  deleteComment(id: string) {
+    return api.delete(`/admin/comments/${id}`)
+  },
 }
 
 export default api
