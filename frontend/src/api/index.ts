@@ -118,4 +118,17 @@ export const notificationApi = {
   },
 }
 
+// ===== 管理员 API =====
+export const adminApi = {
+  getUsers(page = 1, size = 20) {
+    return api.get('/admin/users', { params: { page, size } })
+  },
+  banUser(id: string) {
+    return api.put(`/admin/users/${id}/ban`)
+  },
+  unbanUser(id: string) {
+    return api.put(`/admin/users/${id}/unban`)
+  },
+}
+
 export default api

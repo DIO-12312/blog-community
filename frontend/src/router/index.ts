@@ -42,14 +42,23 @@ const router = createRouter({
       component: () => import('@/views/NotificationView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ],
 })
 
-// 路由守卫：未登录跳转到登录页
+// 路由守卫：未登录跳转到登录页，非管理员无法访问管理页
 router.beforeEach((to) => {
   const userStore = useUserStore()
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     return { name: 'login' }
+  }
+  if (to.meta.requiresAdmin && !userStore.isAdmin) {
+    return { name: 'home' }
   }
 })
 

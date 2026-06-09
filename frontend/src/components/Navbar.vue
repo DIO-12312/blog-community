@@ -6,6 +6,7 @@
     </div>
     <div class="nav-right">
       <template v-if="userStore.isLoggedIn">
+        <router-link v-if="userStore.isAdmin" to="/admin" class="nav-link">管理</router-link>
         <router-link to="/editor" class="nav-link">写文章</router-link>
         <router-link to="/notifications" class="nav-link">
           通知

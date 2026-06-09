@@ -9,6 +9,7 @@ export const useUserStore = defineStore('user', () => {
 
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
+  const isAdmin = computed(() => userInfo.value?.role === 'admin')
 
   // 登录
   async function login(username: string, password: string) {
@@ -37,5 +38,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('token')
   }
 
-  return { token, userInfo, isLoggedIn, login, register, logout }
+  return { token, userInfo, isLoggedIn, isAdmin, login, register, logout }
 })
