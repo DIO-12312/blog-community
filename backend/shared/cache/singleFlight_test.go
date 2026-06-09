@@ -8,7 +8,7 @@ import (
 
 func TestGetSingleFlight(t *testing.T) {
 	g := &Group{
-		GroupMap: make(map[string]*call),
+		GroupMap: make(map[string]*Call),
 	}
 	Ans := map[string]string{"alice": "sum"}
 	Do := func(key string) (interface{}, error) {

@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"time"
 
 	"blog-community/shared/cache"
@@ -16,13 +14,15 @@ import (
 type ArticleRepository struct {
 	db    *gorm.DB
 	redis *cache.RedisClient
+	group *cache.Group
 }
 
 // NewArticleRepository 创建文章仓库
-func NewArticleRepository(db *gorm.DB, redis *cache.RedisClient) *ArticleRepository {
+func NewArticleRepository(db *gorm.DB, redis *cache.RedisClient, group *cache.Group) *ArticleRepository {
 	return &ArticleRepository{
 		db:    db,
 		redis: redis,
+		group: group,
 	}
 }
 
@@ -31,79 +31,34 @@ func (r *ArticleRepository) Create(article *models.Article) error {
 	return r.db.Create(article).Error
 }
 
-// GetByID 根据 ID 获取文章 (带缓存)
+// GetByID 根据 ID 获取文章 (缓存)
 func (r *ArticleRepository) GetByID(ctx context.Context, id string) (*models.Article, error) {
-
-	//1.查询缓存
-	ArticleCacheKey := cache.ArticleKey(id)
-	ArticleValue, err := r.redis.Get(ctx, ArticleCacheKey)
-	//1.1 查询到了缓存
-	if err == nil && ArticleValue != "" {
-		//防止缓存穿透，预设空值
-		if ArticleValue == cache.NullValue {
-			return nil, errors.New("文章不存在")
-		}
-		var article models.Article
-		if err := json.Unmarshal(([]byte)(ArticleValue), &article); err != nil {
-			return &article, err
-		}
-	}
-
-	// 2.没有查询到缓存，查询数据库
-	var article models.Article
-	err = r.db.First(&article, "id = ?", id).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 缓存空值，防止缓存穿透
-			r.redis.Set(ctx, ArticleCacheKey, cache.NullValue, cache.EmptyValueExpiration*time.Second)
-			return nil, errors.New("文章不存在")
-		}
-		return nil, err
-	}
-
-	// 3.查询到数据，写入缓存
-	if articleSQLValue, err := json.Marshal(article); err == nil {
-		r.redis.Set(ctx, ArticleCacheKey, articleSQLValue, cache.ArticleExpiration*time.Second)
-	}
-
-	return &article, nil
+	return cache.FetchOrCache(ctx, r.redis, r.db, r.group,
+		cache.ArticleKey(id),
+		cache.ArticleExpiration*time.Second,
+		func() (*models.Article, error) {
+			var article models.Article
+			if err := r.db.First(&article, "id = ?", id).Error; err != nil {
+				return nil, err
+			}
+			return &article, nil
+		},
+	)
 }
 
 // GetByIDUnscoped 获取文章（包括已删除）(带缓存)
 func (r *ArticleRepository) GetByIDUnscoped(ctx context.Context, id string) (*models.Article, error) {
-
-	//1.查询缓存
-	ArticleCacheKey := cache.ArticleKey(id)
-	ArticleValue, err := r.redis.Get(ctx, ArticleCacheKey)
-	//1.1 查询到了缓存
-	if err == nil && ArticleValue != "" {
-		//防止缓存穿透，预设空值
-		if ArticleValue != cache.NullValue {
+	return cache.FetchOrCache(ctx, r.redis, r.db, r.group,
+		cache.ArticleKey(id),
+		cache.ArticleExpiration*time.Second,
+		func() (*models.Article, error) {
 			var article models.Article
-			if err := json.Unmarshal(([]byte)(ArticleValue), &article); err != nil {
-				return &article, err
+			if err := r.db.Unscoped().First(&article, "id = ?", id).Error; err != nil {
+				return nil, err
 			}
-		}
-	}
-
-	// 2.没有查询到缓存，查询数据库
-	var article models.Article
-	err = r.db.Unscoped().First(&article, "id = ?", id).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 缓存空值，防止缓存穿透
-			r.redis.Set(ctx, ArticleCacheKey, cache.NullValue, cache.EmptyValueExpiration*time.Second)
-			return nil, errors.New("文章不存在")
-		}
-		return nil, err
-	}
-
-	// 3.查询到数据，写入缓存
-	if articleSQLValue, err := json.Marshal(article); err == nil {
-		r.redis.Set(ctx, ArticleCacheKey, articleSQLValue, cache.ArticleExpiration*time.Second)
-	}
-
-	return &article, nil
+			return &article, nil
+		},
+	)
 }
 
 // ListByAuthor 获取某用户的文章列表
