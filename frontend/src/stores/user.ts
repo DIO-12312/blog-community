@@ -7,9 +7,23 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
   const userInfo = ref<any>(null)
 
+  // 从 JWT 中解析角色（页面刷新后无需 API 调用即可使用）
+  function getRolesFromToken(): string[] {
+    try {
+      if (!token.value) return []
+      const payload = JSON.parse(atob(token.value.split('.')[1]))
+      return payload.roles || []
+    } catch {
+      return []
+    }
+  }
+
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
-  const isAdmin = computed(() => userInfo.value?.role === 'admin')
+  const isAdmin = computed(() => {
+    if (userInfo.value?.role === 'admin') return true
+    return getRolesFromToken().includes('admin')
+  })
 
   // 登录
   async function login(username: string, password: string) {

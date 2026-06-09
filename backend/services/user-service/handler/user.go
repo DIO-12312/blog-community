@@ -79,6 +79,8 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		"email":    user.Email,
 		"avatar":   user.Avatar,
 		"bio":      user.Bio,
+		"role":     user.Role,
+		"banned":   user.Banned,
 	})
 }
 
