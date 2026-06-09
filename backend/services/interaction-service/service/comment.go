@@ -38,7 +38,7 @@ func (s *CommentService) Create(articleID, userID, username, content string, par
 	comment := &models.Comment{
 		ArticleID: articleID,
 		UserID:    userID,
-			Username:  username,
+		Username:  username,
 		Content:   content,
 		ParentID:  parentID,
 	}

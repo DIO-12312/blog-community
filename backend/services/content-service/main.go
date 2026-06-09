@@ -51,7 +51,10 @@ func main() {
 	defer redisClient.Close()
 
 	// 4. 初始化各层
-	repo := repository.NewArticleRepository(db, redisClient)
+	g := &cache.Group{
+		GroupMap: make(map[string]*cache.Call),
+	}
+	repo := repository.NewArticleRepository(db, redisClient, g)
 
 	rmq := events.NewRabbitMQ()
 	defer rmq.Close()
