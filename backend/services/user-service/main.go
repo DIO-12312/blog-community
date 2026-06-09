@@ -42,6 +42,12 @@ func main() {
 	router.DELETE("/api/users/:id/follow", h.UnFollow)
 	router.GET("/api/users/:id/followers", h.GetFollowers)
 	router.GET("/api/users/:id/followings", h.GetFollowings)
+
+	// 管理员路由
+	router.GET("/api/admin/users", h.ListUsers)
+	router.PUT("/api/admin/users/:id/ban", h.BanUser)
+	router.PUT("/api/admin/users/:id/unban", h.UnbanUser)
+
 	log.Println("用户服务启动在 :8001")
 	router.Run(":8001")
 }

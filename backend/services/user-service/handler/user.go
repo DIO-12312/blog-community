@@ -160,6 +160,37 @@ func (h *UserHandler) GetFollowings(c *gin.Context) {
 	utils.Paginated(c, users, "获取关注", total, page, size)
 }
 
+// ListUsers 管理员获取用户列表 GET /api/admin/users
+func (h *UserHandler) ListUsers(c *gin.Context) {
+	page, size := parsePagination(c)
+	users, total, err := h.service.ListUsers(page, size)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "获取用户列表失败："+err.Error())
+		return
+	}
+	utils.Paginated(c, users, "获取用户列表成功", total, page, size)
+}
+
+// BanUser 管理员封禁用户 PUT /api/admin/users/:id/ban
+func (h *UserHandler) BanUser(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.service.BanUser(id); err != nil {
+		utils.Error(c, http.StatusBadRequest, "封禁失败："+err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, "封禁成功", nil)
+}
+
+// UnbanUser 管理员解除封禁 PUT /api/admin/users/:id/unban
+func (h *UserHandler) UnbanUser(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.service.UnbanUser(id); err != nil {
+		utils.Error(c, http.StatusBadRequest, "解封失败："+err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, "解除封禁成功", nil)
+}
+
 // parsePagination 解析分页参数
 func parsePagination(c *gin.Context) (int, int) {
 	page := 1

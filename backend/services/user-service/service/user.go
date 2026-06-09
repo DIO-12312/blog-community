@@ -66,15 +66,20 @@ func (s *UserService) Login(username, password string) (string, error) {
 	if !ok {
 		return "", errors.New("用户名或密码错误")
 	}
+	// 检查是否被封禁
+	if user.Banned {
+		return "", errors.New("账号已被封禁")
+	}
+
 	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return "", errors.New("用户名或密码错误")
 	}
 
-	//生成JWT
+	//生成JWT（包含用户角色）
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID,
-		"roles":   []string{"user"},
+		"roles":   []string{user.Role},
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	}).SignedString(s.jwtSecret)
 	if err != nil {
@@ -171,6 +176,27 @@ func (s *UserService) UnFollow(followerID, followingID string) error {
 // GetFollowers 获取粉丝列表
 func (s *UserService) GetFollowers(userID string, page, size int) ([]models.User, int64, error) {
 	return s.repo.GetFollowers(userID, page, size)
+}
+
+// ListUsers 获取所有用户列表（管理员）
+func (s *UserService) ListUsers(page, size int) ([]models.User, int64, error) {
+	return s.repo.ListUsers(page, size)
+}
+
+// BanUser 封禁用户（管理员）
+func (s *UserService) BanUser(id string) error {
+	if _, ok := s.repo.GetUserByID(id); !ok {
+		return errors.New("用户不存在")
+	}
+	return s.repo.BanUser(id)
+}
+
+// UnbanUser 解除封禁（管理员）
+func (s *UserService) UnbanUser(id string) error {
+	if _, ok := s.repo.GetUserByID(id); !ok {
+		return errors.New("用户不存在")
+	}
+	return s.repo.UnbanUser(id)
 }
 
 // GetFollowing 获取关注列表

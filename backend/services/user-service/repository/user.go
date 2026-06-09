@@ -122,6 +122,27 @@ func (r *UserRepository) GetFollowers(userID string, page, size int) ([]models.U
 	return users, total, err
 }
 
+// ListUsers 分页获取所有用户列表（管理员）
+func (r *UserRepository) ListUsers(page, size int) ([]models.User, int64, error) {
+	var total int64
+	var users []models.User
+	if err := r.db.Model(&models.User{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.Order("created_at DESC").Offset((page - 1) * size).Limit(size).Find(&users).Error
+	return users, total, err
+}
+
+// BanUser 封禁用户
+func (r *UserRepository) BanUser(id string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", id).Update("banned", true).Error
+}
+
+// UnbanUser 解除封禁
+func (r *UserRepository) UnbanUser(id string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", id).Update("banned", false).Error
+}
+
 // GetFollowerings 获取用户的关注列表
 func (r *UserRepository) GetFollowings(userID string, page, size int) ([]models.User, int64, error) {
 	total, err := r.GetFollowingsCount(userID)

@@ -12,8 +12,9 @@ import (
 const JWTSecret = "your-secret-key-change-in-production"
 
 type Claims struct {
-	UserID   string `json:"user_id"`
-	UserName string `json:"username"`
+	UserID   string   `json:"user_id"`
+	UserName string   `json:"username"`
+	Roles    []string `json:"roles"`
 	jwt.RegisteredClaims
 }
 
@@ -104,6 +105,64 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 		c.Set("username", claims.UserName)
 
 		// 5. 继续处理请求
+		c.Next()
+	}
+}
+
+// AdminMiddleware 管理员认证中间件（要求 JWT 包含 admin 角色）
+func AdminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		auth := c.GetHeader("Authorization")
+		if auth == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "缺少令牌",
+			})
+			return
+		}
+		parts := strings.SplitN(auth, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "令牌格式错误",
+			})
+			return
+		}
+		tokenString := parts[1]
+
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return ([]byte)(JWTSecret), nil
+		})
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "令牌无效或已过期",
+			})
+			return
+		}
+
+		// 检查是否为管理员
+		isAdmin := false
+		for _, role := range claims.Roles {
+			if role == "admin" {
+				isAdmin = true
+				break
+			}
+		}
+		if !isAdmin {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"code":    403,
+				"message": "需要管理员权限",
+			})
+			return
+		}
+
+		c.Set("userID", claims.UserID)
+		c.Set("username", claims.UserName)
 		c.Next()
 	}
 }

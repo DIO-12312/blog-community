@@ -10,6 +10,8 @@ type User struct {
 	PasswordHash string `gorm:"size:255" json:"-"` // json:"-" 不返回给前端
 	Avatar       string `gorm:"size:255" json:"avatar"`
 	Bio          string `gorm:"size:500" json:"bio"`
+	Role         string `gorm:"size:20;default:'user'" json:"role"`   // 角色：user/admin
+	Banned       bool   `gorm:"default:false" json:"banned"`          // 是否被封禁
 }
 
 // Follow 关注关系（多对多）

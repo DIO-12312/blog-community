@@ -46,6 +46,11 @@ func SetupRoutes(router *gin.Engine) {
 	authenticated := router.Group("/")
 	authenticated.Use(middleware.AuthMiddleware())
 	setupPrivateRoutes(authenticated)
+
+	// 管理员路由（需要管理员权限）
+	admin := router.Group("/api/admin")
+	admin.Use(middleware.AdminMiddleware())
+	setupAdminRoutes(admin)
 }
 
 // setupPublicRoutes 设置公开路由
@@ -105,6 +110,13 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 
 	// 审计日志
 	router.GET("/api/audit-logs", proxyTo("audit"))
+}
+
+func setupAdminRoutes(router *gin.RouterGroup) {
+	// 用户管理
+	router.GET("/users", proxyTo("user"))
+	router.PUT("/users/:id/ban", proxyTo("user"))
+	router.PUT("/users/:id/unban", proxyTo("user"))
 }
 
 // proxyTo 返回一个反向代理处理器（复用全局单例 proxy，共享 HTTP 连接池）
