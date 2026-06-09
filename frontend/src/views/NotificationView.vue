@@ -51,7 +51,7 @@ async function fetchNotifications() {
   loading.value = true
   try {
     const res: any = await notificationApi.getList()
-    notifications.value = res.data.list || []
+    notifications.value = res.data || []
   } finally {
     loading.value = false
   }

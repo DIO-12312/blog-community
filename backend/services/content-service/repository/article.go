@@ -131,12 +131,12 @@ func (r *ArticleRepository) Delete(ctx context.Context, id string) error {
 	return err
 }
 
-// ListAllArticles 管理员获取所有文章（含已删除）
+// ListAllArticles 管理员获取所有文章（不含已删除）
 func (r *ArticleRepository) ListAllArticles(page, size int) ([]models.Article, int64, error) {
 	var articles []models.Article
 	var total int64
-	r.db.Unscoped().Model(&models.Article{}).Count(&total)
-	err := r.db.Unscoped().Order("created_at DESC").Offset((page - 1) * size).Limit(size).Find(&articles).Error
+	r.db.Model(&models.Article{}).Count(&total)
+	err := r.db.Order("created_at DESC").Offset((page - 1) * size).Limit(size).Find(&articles).Error
 	return articles, total, err
 }
 
