@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { userApi } from '@/api'
+import { userApi, notificationApi } from '@/api'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
   const token = ref(localStorage.getItem('token') || '')
   const userInfo = ref<any>(null)
+  const unreadCount = ref(0)
 
   // 从 JWT 中解析角色（页面刷新后无需 API 调用即可使用）
   function getRolesFromToken(): string[] {
@@ -49,8 +50,19 @@ export const useUserStore = defineStore('user', () => {
   function logout() {
     token.value = ''
     userInfo.value = null
+    unreadCount.value = 0
     localStorage.removeItem('token')
   }
 
-  return { token, userInfo, isLoggedIn, isAdmin, login, register, logout }
+  // 拉取未读通知数
+  async function fetchUnreadCount() {
+    try {
+      const res: any = await notificationApi.getUnreadCount()
+      unreadCount.value = res.data.count
+    } catch {
+      // 静默失败
+    }
+  }
+
+  return { token, userInfo, unreadCount, isLoggedIn, isAdmin, login, register, logout, fetchUnreadCount }
 })

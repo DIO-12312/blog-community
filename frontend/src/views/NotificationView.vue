@@ -40,9 +40,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { notificationApi } from '@/api'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const notifications = ref<any[]>([])
 const loading = ref(false)
@@ -61,7 +63,10 @@ async function handleMarkRead(id: string) {
   try {
     await notificationApi.markAsRead(id)
     const target = notifications.value.find((n) => n.id === id)
-    if (target) target.is_read = true
+    if (target) {
+      target.is_read = true
+      userStore.unreadCount--
+    }
   } catch {
     // 错误由拦截器处理
   }
@@ -71,6 +76,7 @@ async function handleMarkAllRead() {
   try {
     await notificationApi.markAllAsRead()
     notifications.value.forEach((n) => (n.is_read = true))
+    userStore.unreadCount = 0
   } catch {
     // 错误由拦截器处理
   }
