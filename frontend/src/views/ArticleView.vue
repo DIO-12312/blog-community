@@ -9,6 +9,11 @@
 
     <div class="content" v-html="renderedContent"></div>
 
+    <!-- 管理员操作 -->
+    <div v-if="userStore.isAdmin" class="admin-actions">
+      <button class="btn-delete" @click="handleAdminDelete">删除文章</button>
+    </div>
+
     <!-- 互动按钮 -->
     <div class="actions">
       <button @click="toggleLike" :class="{ active: isLiked }">
@@ -26,11 +31,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { articleApi, interactionApi } from '@/api'
+import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { articleApi, interactionApi, adminApi } from '@/api'
 import CommentList from '@/components/CommentList.vue'
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 const articleId = route.params.id as string
 
 const article = ref<any>(null)
@@ -88,6 +96,16 @@ async function toggleCollect() {
   }
 }
 
+async function handleAdminDelete() {
+  if (!confirm('确定要删除这篇文章吗？')) return
+  try {
+    await adminApi.deleteArticle(articleId)
+    router.push('/')
+  } catch {
+    // 错误由拦截器处理
+  }
+}
+
 onMounted(() => {
   fetchArticle()
   fetchInteractionStatus()
@@ -124,6 +142,26 @@ onMounted(() => {
   line-height: 1.8;
   color: #333;
   margin-bottom: 32px;
+}
+
+.admin-actions {
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.btn-delete {
+  padding: 6px 16px;
+  background: none;
+  border: 1px solid #e74c3c;
+  border-radius: 4px;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-delete:hover {
+  background: #e74c3c;
+  color: #fff;
 }
 
 .actions {

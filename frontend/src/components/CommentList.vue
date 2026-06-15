@@ -27,13 +27,22 @@
           <span class="comment-time">{{ comment.created_at }}</span>
         </div>
         <div class="comment-content">{{ comment.content }}</div>
-        <button
-          v-if="userStore.isLoggedIn"
-          class="btn-reply"
-          @click="toggleReply(comment.id)"
-        >
-          回复
-        </button>
+        <div class="comment-actions">
+          <button
+            v-if="userStore.isLoggedIn"
+            class="btn-reply"
+            @click="toggleReply(comment.id)"
+          >
+            回复
+          </button>
+          <button
+            v-if="userStore.isAdmin"
+            class="btn-delete"
+            @click="handleDeleteComment(comment.id)"
+          >
+            删除
+          </button>
+        </div>
 
         <!-- 回复输入框 -->
         <div v-if="replyTarget === comment.id" class="reply-form">
@@ -59,6 +68,13 @@
               <span class="comment-time">{{ child.created_at }}</span>
             </div>
             <div class="comment-content">{{ child.content }}</div>
+            <button
+              v-if="userStore.isAdmin"
+              class="btn-delete"
+              @click="handleDeleteComment(child.id)"
+            >
+              删除
+            </button>
           </div>
         </div>
       </div>
@@ -69,7 +85,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { commentApi } from '@/api'
+import { commentApi, adminApi } from '@/api'
 
 const props = defineProps<{
   articleId: string
@@ -127,6 +143,16 @@ async function submitReply(parentId: string) {
     })
     replyContent.value = ''
     replyTarget.value = ''
+    fetchComments()
+  } catch {
+    // 错误由拦截器处理
+  }
+}
+
+async function handleDeleteComment(commentId: string) {
+  if (!confirm('确定要删除这条评论吗？')) return
+  try {
+    await adminApi.deleteComment(commentId)
     fetchComments()
   } catch {
     // 错误由拦截器处理
@@ -222,8 +248,14 @@ onMounted(fetchComments)
   color: #444;
 }
 
-.btn-reply {
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 6px;
+}
+
+.btn-reply {
   padding: 2px 8px;
   background: none;
   border: none;
@@ -234,6 +266,19 @@ onMounted(fetchComments)
 
 .btn-reply:hover {
   color: #3498db;
+}
+
+.btn-delete {
+  padding: 2px 8px;
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-delete:hover {
+  text-decoration: underline;
 }
 
 .reply-form {
