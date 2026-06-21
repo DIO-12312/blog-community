@@ -114,7 +114,7 @@ func (r *ArticleRepository) Update(ctx context.Context, article *models.Article)
 		Updates(article).Error
 
 	//删除原有缓存
-	if err == nil {
+	if err == nil && r.redis != nil {
 		articleKey := cache.ArticleKey(article.ID)
 		r.redis.Del(ctx, articleKey)
 	}
