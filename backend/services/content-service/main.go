@@ -40,7 +40,7 @@ func main() {
 	}
 
 	// 2. 执行数据库迁移
-	db.AutoMigrate(&models.Article{}, &models.Category{})
+	db.AutoMigrate(&models.Article{}, &models.Category{}, &models.ReviewRecord{})
 
 	// 3. 连接 Redis
 	redisAddr := getEnv("REDIS_ADDR", "redis:6379")
@@ -63,6 +63,11 @@ func main() {
 	svc := service.NewArticleService(repo, publisher)
 	h := handler.NewArticleHandler(svc)
 
+	// 审稿模块
+	reviewRepo := repository.NewReviewRepository(db)
+	reviewSvc := service.NewReviewService(repo, reviewRepo, publisher)
+	reviewH := handler.NewReviewHandler(reviewSvc)
+
 	// 5. 设置路由
 	router := gin.Default()
 
@@ -80,6 +85,14 @@ func main() {
 	// 管理员路由
 	router.GET("/api/admin/articles", h.ListAllArticles)
 	router.DELETE("/api/admin/articles/:id", h.AdminDeleteArticle)
+
+	// 审稿路由（需认证）
+	router.POST("/api/articles/:id/submit-review", reviewH.SubmitForReview)
+	router.GET("/api/articles/:id/review-history", reviewH.GetReviewHistory)
+
+	// 审稿管理员路由
+	router.GET("/api/admin/reviews/pending", reviewH.ListPendingReviews)
+	router.POST("/api/admin/articles/:id/review", reviewH.ReviewArticle)
 
 	// 6. 启动浏览计数定期同步任务（每 5 分钟将 Redis 计数写入 MySQL）
 	svc.StartViewCountSyncWorker(context.Background(), 5*time.Minute)
