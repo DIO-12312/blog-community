@@ -194,8 +194,8 @@ func NewReviewService(
 }
 
 // SubmitForReview 作者提交审稿：draft → pending_review
-func (s *ReviewService) SubmitForReview(articleID, authorID string) (*models.Article, error) {
-	article, err := s.articleRepo.GetByID(context.Background(), articleID)
+func (s *ReviewService) SubmitForReview(ctx context.Context, articleID, authorID string) (*models.Article, error) {
+	article, err := s.articleRepo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, fmt.Errorf("文章不存在: %w", err)
 	}
@@ -207,7 +207,7 @@ func (s *ReviewService) SubmitForReview(articleID, authorID string) (*models.Art
 	}
 
 	article.Status = models.StatusPendingReview
-	if err := s.articleRepo.Update(context.Background(), article); err != nil {
+	if err := s.articleRepo.Update(ctx, article); err != nil {
 		return nil, fmt.Errorf("提交审稿失败: %w", err)
 	}
 
@@ -221,8 +221,8 @@ func (s *ReviewService) SubmitForReview(articleID, authorID string) (*models.Art
 }
 
 // ReviewArticle 管理员审稿：pending_review → published / draft
-func (s *ReviewService) ReviewArticle(articleID, reviewerID, action string, comment *string) (*models.ReviewRecord, error) {
-	article, err := s.articleRepo.GetByID(context.Background(), articleID)
+func (s *ReviewService) ReviewArticle(ctx context.Context, articleID, reviewerID, action string, comment *string) (*models.ReviewRecord, error) {
+	article, err := s.articleRepo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, fmt.Errorf("文章不存在: %w", err)
 	}
@@ -240,9 +240,7 @@ func (s *ReviewService) ReviewArticle(articleID, reviewerID, action string, comm
 	switch action {
 	case models.ReviewActionApproved:
 		article.Status = models.StatusPublished
-		now := article.UpdatedAt // 使用 GORM 自动时间
-		_ = now
-		if err := s.articleRepo.Update(context.Background(), article); err != nil {
+		if err := s.articleRepo.Update(ctx, article); err != nil {
 			return nil, fmt.Errorf("发布文章失败: %w", err)
 		}
 		if err := s.reviewRepo.Create(record); err != nil {
@@ -256,7 +254,7 @@ func (s *ReviewService) ReviewArticle(articleID, reviewerID, action string, comm
 
 	case models.ReviewActionRejected:
 		article.Status = models.StatusDraft
-		if err := s.articleRepo.Update(context.Background(), article); err != nil {
+		if err := s.articleRepo.Update(ctx, article); err != nil {
 			return nil, fmt.Errorf("驳回文章失败: %w", err)
 		}
 		if err := s.reviewRepo.Create(record); err != nil {
@@ -277,8 +275,8 @@ func (s *ReviewService) ReviewArticle(articleID, reviewerID, action string, comm
 }
 
 // GetReviewHistory 获取文章的审稿历史
-func (s *ReviewService) GetReviewHistory(articleID, userID string) ([]models.ReviewRecord, error) {
-	article, err := s.articleRepo.GetByID(context.Background(), articleID)
+func (s *ReviewService) GetReviewHistory(ctx context.Context, articleID, userID string) ([]models.ReviewRecord, error) {
+	article, err := s.articleRepo.GetByID(ctx, articleID)
 	if err != nil {
 		return nil, fmt.Errorf("文章不存在: %w", err)
 	}
@@ -346,7 +344,7 @@ func (h *ReviewHandler) SubmitForReview(c *gin.Context) {
 		return
 	}
 
-	article, err := h.service.SubmitForReview(articleID, authorID)
+	article, err := h.service.SubmitForReview(c.Request.Context(), articleID, authorID)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -372,7 +370,7 @@ func (h *ReviewHandler) ReviewArticle(c *gin.Context) {
 		return
 	}
 
-	record, err := h.service.ReviewArticle(articleID, reviewerID, req.Action, req.Comment)
+	record, err := h.service.ReviewArticle(c.Request.Context(), articleID, reviewerID, req.Action, req.Comment)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -389,7 +387,7 @@ func (h *ReviewHandler) GetReviewHistory(c *gin.Context) {
 		return
 	}
 
-	records, err := h.service.GetReviewHistory(articleID, authorID)
+	records, err := h.service.GetReviewHistory(c.Request.Context(), articleID, authorID)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
