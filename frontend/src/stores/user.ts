@@ -12,7 +12,9 @@ export const useUserStore = defineStore('user', () => {
   function getRolesFromToken(): string[] {
     try {
       if (!token.value) return []
-      const payload = JSON.parse(atob(token.value.split('.')[1]))
+      const [, jwtPayload] = token.value.split('.')
+      if (!jwtPayload) return []
+      const payload = JSON.parse(atob(jwtPayload))
       return payload.roles || []
     } catch {
       return []
@@ -32,7 +34,9 @@ export const useUserStore = defineStore('user', () => {
     const newToken: string = res.data.token
 
     // 先解析 JWT 获取用户 ID，再拉取用户信息
-    const payload = JSON.parse(atob(newToken.split('.')[1]))
+    const [, jwtPayload] = newToken.split('.')
+    if (!jwtPayload) return
+    const payload = JSON.parse(atob(jwtPayload))
     const profile: any = await userApi.getProfile(payload.user_id)
     userInfo.value = profile.data
 
