@@ -165,6 +165,25 @@ func (h *ArticleHandler) AdminDeleteArticle(c *gin.Context) {
 	utils.Success(c, http.StatusOK, "删除成功", nil)
 }
 
+// ListMyArticles GET /api/articles/my — 获取当前用户的文章
+func (h *ArticleHandler) ListMyArticles(c *gin.Context) {
+	authorID := c.GetHeader("X-User-ID")
+	if authorID == "" {
+		utils.Error(c, http.StatusUnauthorized, "缺少用户身份")
+		return
+	}
+
+	page, size := parsePagination(c)
+
+	articles, total, err := h.service.ListMyArticles(authorID, page, size)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "获取文章列表失败")
+		return
+	}
+
+	utils.Paginated(c, articles, "获取成功", total, page, size)
+}
+
 // parsePagination 解析分页参数
 func parsePagination(c *gin.Context) (int, int) {
 	page := 1
