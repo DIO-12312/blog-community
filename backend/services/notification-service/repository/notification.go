@@ -59,3 +59,10 @@ func (r *NotificationRepository) GetUnreadCount(userID string) int64 {
 		Count(&count)
 	return count
 }
+
+// GetAdminUserIDs 查询所有管理员的用户 ID
+func (r *NotificationRepository) GetAdminUserIDs() ([]string, error) {
+	var ids []string
+	err := r.db.Model(&models.User{}).Where("role = ?", "admin").Pluck("id", &ids).Error
+	return ids, err
+}

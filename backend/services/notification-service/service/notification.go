@@ -75,6 +75,50 @@ func (s *NotificationService) StartListening() {
 		}
 		return s.repo.Create(notification)
 	})
+
+	// 监听审稿提交事件 → 通知所有管理员（每人一条）
+	s.consumer.Subscribe("notification_review_submitted", "article.submitted_for_review", func(event events.Event) error {
+		articleID := event.Data["article_id"].(string)
+		title := event.Data["title"].(string)
+
+		adminIDs, err := s.repo.GetAdminUserIDs()
+		if err != nil {
+			return err
+		}
+
+		for _, adminID := range adminIDs {
+			notification := &models.Notification{
+				UserID:   adminID,
+				Type:     "new_submission",
+				Content:  fmt.Sprintf("《%s》已提交审核，请处理", title),
+				SourceID: articleID,
+			}
+			if err := s.repo.Create(notification); err != nil {
+				log.Printf("创建管理员通知失败 (admin: %s): %v", adminID, err)
+			}
+		}
+		return nil
+	})
+
+	// 监听审稿驳回事件 → 通知作者
+	s.consumer.Subscribe("notification_review_rejected", "article.review_rejected", func(event events.Event) error {
+		authorID := event.Data["author_id"].(string)
+		title := event.Data["title"].(string)
+		articleID := event.Data["article_id"].(string)
+
+		content := fmt.Sprintf("你的文章《%s》已被退回", title)
+		if comment, ok := event.Data["comment"].(string); ok && comment != "" {
+			content += "，原因：" + comment
+		}
+
+		notification := &models.Notification{
+			UserID:   authorID,
+			Type:     "review_rejected",
+			Content:  content,
+			SourceID: articleID,
+		}
+		return s.repo.Create(notification)
+	})
 }
 
 // GetUserNotifications 获取用户通知（分页）
