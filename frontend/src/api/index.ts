@@ -58,6 +58,12 @@ export const articleApi = {
   publish(id: string) {
     return api.post(`/articles/${id}/publish`)
   },
+  submitReview(id: string) {
+    return api.post(`/articles/${id}/submit-review`)
+  },
+  getReviewHistory(id: string) {
+    return api.get(`/articles/${id}/review-history`)
+  },
 }
 
 // ===== 评论 API =====
@@ -140,6 +146,12 @@ export const adminApi = {
   },
   deleteComment(id: string) {
     return api.delete(`/admin/comments/${id}`)
+  },
+  getPendingReviews(page = 1, size = 20) {
+    return api.get('/admin/reviews/pending', { params: { page, size } })
+  },
+  reviewArticle(id: string, data: { action: string; comment?: string }) {
+    return api.post(`/admin/articles/${id}/review`, data)
   },
 }
 
