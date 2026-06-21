@@ -69,10 +69,10 @@ EventArticleSubmittedForReview = "article.submitted_for_review"
 EventArticleReviewRejected     = "article.review_rejected"
 ```
 
-- [ ] **Step 4: 验证编译**
+- [ ] **Step 4: 运行现有测试确保无破坏**
 
-Run: `cd backend/content-service && go build ./...`
-Expected: 编译通过（新增模型未引用，无破坏）
+Run: `cd backend/shared && go test ./...`
+Expected: PASS（新增常量及模型不影响已有测试）
 
 - [ ] **Step 5: Commit**
 
@@ -140,16 +140,180 @@ func (r *ReviewRepository) ListPendingArticles(page, size int) ([]models.Article
 }
 ```
 
-- [ ] **Step 2: 验证编译**
+- [ ] **Step 2: 创建 ReviewRepository 测试**
 
-Run: `cd backend/services/content-service && go build ./...`
-Expected: 编译通过
+Create `backend/services/content-service/repository/review_test.go`:
 
-- [ ] **Step 3: Commit**
+```go
+package repository
+
+import (
+	"fmt"
+	"testing"
+
+	"blog-community/shared/models"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+func newReviewTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("无法连接 SQLite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.Article{}, &models.ReviewRecord{}); err != nil {
+		t.Fatalf("无法迁移表: %v", err)
+	}
+	return db
+}
+
+func createTestArticle(t *testing.T, db *gorm.DB, authorID, title, status string) *models.Article {
+	t.Helper()
+	a := &models.Article{
+		AuthorID: authorID,
+		Title:    title,
+		Content:  "test content",
+		Status:   status,
+	}
+	if err := db.Create(a).Error; err != nil {
+		t.Fatalf("创建测试文章失败: %v", err)
+	}
+	return a
+}
+
+func TestReviewRepo_Create(t *testing.T) {
+	db := newReviewTestDB(t)
+	repo := NewReviewRepository(db)
+
+	comment := "审稿意见"
+	record := &models.ReviewRecord{
+		ArticleID:  "article-1",
+		ReviewerID: "admin-1",
+		Action:     models.ReviewActionApproved,
+		Comment:    &comment,
+	}
+	if err := repo.Create(record); err != nil {
+		t.Fatalf("Create() 失败: %v", err)
+	}
+	if record.ID == "" {
+		t.Error("期望 ID 自动生成，但 ID 为空")
+	}
+
+	// 验证 Comment 为 NULL 时也能创建
+	record2 := &models.ReviewRecord{
+		ArticleID:  "article-2",
+		ReviewerID: "admin-1",
+		Action:     models.ReviewActionRejected,
+		Comment:    nil,
+	}
+	if err := repo.Create(record2); err != nil {
+		t.Fatalf("Create(nil comment) 失败: %v", err)
+	}
+}
+
+func TestReviewRepo_GetByArticleID(t *testing.T) {
+	db := newReviewTestDB(t)
+	repo := NewReviewRepository(db)
+
+	// 为 article-1 创建 3 条审稿记录
+	for i := 0; i < 3; i++ {
+		comment := fmt.Sprintf("意见 %d", i)
+		repo.Create(&models.ReviewRecord{
+			ArticleID:  "article-1",
+			ReviewerID: "admin-1",
+			Action:     models.ReviewActionApproved,
+			Comment:    &comment,
+		})
+	}
+	// 为 article-2 创建 2 条（不应被查出）
+	for i := 0; i < 2; i++ {
+		repo.Create(&models.ReviewRecord{
+			ArticleID:  "article-2",
+			ReviewerID: "admin-2",
+			Action:     models.ReviewActionRejected,
+		})
+	}
+
+	records, err := repo.GetByArticleID("article-1")
+	if err != nil {
+		t.Fatalf("GetByArticleID() 失败: %v", err)
+	}
+	if len(records) != 3 {
+		t.Errorf("期望 3 条记录, 实际=%d", len(records))
+	}
+
+	// 验证倒序
+	if len(records) >= 2 && records[0].CreatedAt.Before(records[1].CreatedAt) {
+		t.Error("期望按 created_at DESC 排序")
+	}
+
+	// 查询无记录的文章
+	empty, err := repo.GetByArticleID("article-99")
+	if err != nil {
+		t.Fatalf("GetByArticleID() 失败: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Errorf("期望 0 条, 实际=%d", len(empty))
+	}
+}
+
+func TestReviewRepo_ListPendingArticles(t *testing.T) {
+	db := newReviewTestDB(t)
+	repo := NewReviewRepository(db)
+
+	// 创建 5 篇 pending_review + 3 篇其他状态
+	for i := 0; i < 5; i++ {
+		createTestArticle(t, db, fmt.Sprintf("user-%d", i), fmt.Sprintf("待审 %d", i), models.StatusPendingReview)
+	}
+	for i := 0; i < 3; i++ {
+		createTestArticle(t, db, fmt.Sprintf("user-%d", i+10), fmt.Sprintf("已发布 %d", i), models.StatusPublished)
+	}
+
+	tests := []struct {
+		name        string
+		page, size  int
+		expectCount int
+		expectTotal int64
+	}{
+		{"第1页2条", 1, 2, 2, 5},
+		{"第2页2条", 2, 2, 2, 5},
+		{"第3页2条", 3, 2, 1, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			articles, total, err := repo.ListPendingArticles(tt.page, tt.size)
+			if err != nil {
+				t.Fatalf("ListPendingArticles() 失败: %v", err)
+			}
+			if total != tt.expectTotal {
+				t.Errorf("total: 期望=%d, 实际=%d", tt.expectTotal, total)
+			}
+			if len(articles) != tt.expectCount {
+				t.Errorf("count: 期望=%d, 实际=%d", tt.expectCount, len(articles))
+			}
+			for _, a := range articles {
+				if a.Status != models.StatusPendingReview {
+					t.Errorf("期望所有文章 status=pending_review, 实际=%s", a.Status)
+				}
+			}
+		})
+	}
+}
+```
+
+- [ ] **Step 3: 运行测试并验证覆盖率**
+
+Run: `cd backend/services/content-service && go test ./repository/... -cover`
+Expected: PASS，覆盖率 >= 70%
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add backend/services/content-service/repository/review.go
-git commit -m "feat: 新增 ReviewRepository 数据访问层"
+git add backend/services/content-service/repository/review.go backend/services/content-service/repository/review_test.go
+git commit -m "feat: 新增 ReviewRepository + 测试"
 ```
 
 ---
@@ -292,16 +456,228 @@ func (s *ReviewService) GetPendingArticles(page, size int) ([]models.Article, in
 }
 ```
 
-- [ ] **Step 2: 验证编译**
+- [ ] **Step 2: 创建 ReviewService 测试**
 
-Run: `cd backend/services/content-service && go build ./...`
-Expected: 编译通过
+Create `backend/services/content-service/service/review_test.go`:
 
-- [ ] **Step 3: Commit**
+```go
+package service
+
+import (
+	"testing"
+
+	"blog-community/content-service/repository"
+	"blog-community/shared/cache"
+	"blog-community/shared/models"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+func newReviewTestSvc(t *testing.T) (*ReviewService, *gorm.DB) {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("无法连接 SQLite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.Article{}, &models.ReviewRecord{}); err != nil {
+		t.Fatalf("无法迁移表: %v", err)
+	}
+	g := &cache.Group{GroupMap: make(map[string]*cache.Call)}
+	articleRepo := repository.NewArticleRepository(db, nil, g)
+	reviewRepo := repository.NewReviewRepository(db)
+	svc := NewReviewService(articleRepo, reviewRepo, nil) // publisher 为 nil
+	return svc, db
+}
+
+func createDraftArticle(t *testing.T, svc *ReviewService, authorID, title string) *models.Article {
+	t.Helper()
+	a := &models.Article{AuthorID: authorID, Title: title, Content: "test", Status: models.StatusDraft}
+	if err := svc.articleRepo.Create(a); err != nil {
+		t.Fatalf("创建测试文章失败: %v", err)
+	}
+	return a
+}
+
+func TestSubmitForReview_Success(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试文章")
+
+	article, err := svc.SubmitForReview(ctx, a.ID, "user-1")
+	if err != nil {
+		t.Fatalf("SubmitForReview() 失败: %v", err)
+	}
+	if article.Status != models.StatusPendingReview {
+		t.Errorf("期望 status=pending_review, 实际=%s", article.Status)
+	}
+}
+
+func TestSubmitForReview_NotAuthor(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试文章")
+
+	_, err := svc.SubmitForReview(ctx, a.ID, "user-2")
+	if err == nil {
+		t.Fatal("期望非作者提交审稿返回错误，实际=nil")
+	}
+}
+
+func TestSubmitForReview_NotDraft(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := &models.Article{AuthorID: "user-1", Title: "已发布", Content: "test", Status: models.StatusPublished}
+	svc.articleRepo.Create(a)
+
+	_, err := svc.SubmitForReview(ctx, a.ID, "user-1")
+	if err == nil {
+		t.Fatal("期望非草稿状态提交返回错误，实际=nil")
+	}
+}
+
+func TestSubmitForReview_AlreadyPending(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试")
+	svc.SubmitForReview(ctx, a.ID, "user-1") // 第一次成功
+
+	_, err := svc.SubmitForReview(ctx, a.ID, "user-1") // 第二次应为 pending_review
+	if err == nil {
+		t.Fatal("期望 pending_review 状态再次提交返回错误")
+	}
+}
+
+func TestReviewArticle_Approve(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试文章")
+	svc.SubmitForReview(ctx, a.ID, "user-1")
+
+	comment := "写得好"
+	record, err := svc.ReviewArticle(ctx, a.ID, "admin-1", models.ReviewActionApproved, &comment)
+	if err != nil {
+		t.Fatalf("ReviewArticle(approved) 失败: %v", err)
+	}
+	if record.Action != models.ReviewActionApproved {
+		t.Errorf("期望 action=approved, 实际=%s", record.Action)
+	}
+	if *record.Comment != "写得好" {
+		t.Errorf("期望 comment=写得好, 实际=%s", *record.Comment)
+	}
+
+	// 验证文章已成为 published
+	article, _ := svc.articleRepo.GetByID(ctx, a.ID)
+	if article.Status != models.StatusPublished {
+		t.Errorf("期望 status=published, 实际=%s", article.Status)
+	}
+}
+
+func TestReviewArticle_Reject(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试文章")
+	svc.SubmitForReview(ctx, a.ID, "user-1")
+
+	record, err := svc.ReviewArticle(ctx, a.ID, "admin-1", models.ReviewActionRejected, nil)
+	if err != nil {
+		t.Fatalf("ReviewArticle(rejected) 失败: %v", err)
+	}
+	if record.Action != models.ReviewActionRejected {
+		t.Errorf("期望 action=rejected, 实际=%s", record.Action)
+	}
+
+	// 验证文章已回到 draft
+	article, _ := svc.articleRepo.GetByID(ctx, a.ID)
+	if article.Status != models.StatusDraft {
+		t.Errorf("期望 status=draft, 实际=%s", article.Status)
+	}
+}
+
+func TestReviewArticle_NotPending(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试") // 未提交审稿
+
+	_, err := svc.ReviewArticle(ctx, a.ID, "admin-1", models.ReviewActionApproved, nil)
+	if err == nil {
+		t.Fatal("期望未提交审稿的文章返回错误，实际=nil")
+	}
+}
+
+func TestReviewArticle_InvalidAction(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试")
+	svc.SubmitForReview(ctx, a.ID, "user-1")
+
+	_, err := svc.ReviewArticle(ctx, a.ID, "admin-1", "invalid", nil)
+	if err == nil {
+		t.Fatal("期望无效 action 返回错误，实际=nil")
+	}
+}
+
+func TestGetReviewHistory(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试")
+	svc.SubmitForReview(ctx, a.ID, "user-1")
+	svc.ReviewArticle(ctx, a.ID, "admin-1", models.ReviewActionRejected, nil)
+	svc.SubmitForReview(ctx, a.ID, "user-1")
+	svc.ReviewArticle(ctx, a.ID, "admin-1", models.ReviewActionApproved, nil)
+
+	records, err := svc.GetReviewHistory(ctx, a.ID, "user-1")
+	if err != nil {
+		t.Fatalf("GetReviewHistory() 失败: %v", err)
+	}
+	if len(records) != 2 {
+		t.Errorf("期望 2 条审稿记录, 实际=%d", len(records))
+	}
+}
+
+func TestGetReviewHistory_NotAuthor(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+	a := createDraftArticle(t, svc, "user-1", "测试")
+
+	_, err := svc.GetReviewHistory(ctx, a.ID, "user-2")
+	if err == nil {
+		t.Fatal("期望非作者查看审稿历史返回错误，实际=nil")
+	}
+}
+
+func TestGetPendingArticles(t *testing.T) {
+	svc, _ := newReviewTestSvc(t)
+	ctx := t.Context()
+
+	for i := 0; i < 5; i++ {
+		a := createDraftArticle(t, svc, "user-1", "测试")
+		svc.SubmitForReview(ctx, a.ID, "user-1")
+	}
+
+	articles, total, err := svc.GetPendingArticles(1, 3)
+	if err != nil {
+		t.Fatalf("GetPendingArticles() 失败: %v", err)
+	}
+	if total != 5 {
+		t.Errorf("total: 期望=5, 实际=%d", total)
+	}
+	if len(articles) != 3 {
+		t.Errorf("count: 期望=3, 实际=%d", len(articles))
+	}
+}
+```
+
+- [ ] **Step 3: 运行测试并验证覆盖率**
+
+Run: `cd backend/services/content-service && go test ./service/... -cover`
+Expected: PASS，覆盖率 >= 70%
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add backend/services/content-service/service/review.go
-git commit -m "feat: 新增 ReviewService 业务逻辑层"
+git add backend/services/content-service/service/review.go backend/services/content-service/service/review_test.go
+git commit -m "feat: 新增 ReviewService + 测试"
 ```
 
 ---
@@ -410,16 +786,162 @@ func (h *ReviewHandler) ListPendingReviews(c *gin.Context) {
 // parsePagination 已在 article.go 中定义，此处复用
 ```
 
-- [ ] **Step 2: 验证编译**
+- [ ] **Step 2: 创建 ReviewHandler 测试**
 
-Run: `cd backend/services/content-service && go build ./...`
-Expected: 编译通过
+Create `backend/services/content-service/handler/review_test.go`:
 
-- [ ] **Step 3: Commit**
+```go
+package handler
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"blog-community/content-service/repository"
+	"blog-community/content-service/service"
+	"blog-community/shared/cache"
+	"blog-community/shared/models"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+func newReviewHandlerTest(t *testing.T) (*ReviewHandler, *gorm.DB) {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("无法连接 SQLite: %v", err)
+	}
+	db.AutoMigrate(&models.Article{}, &models.ReviewRecord{})
+
+	g := &cache.Group{GroupMap: make(map[string]*cache.Call)}
+	articleRepo := repository.NewArticleRepository(db, nil, g)
+	reviewRepo := repository.NewReviewRepository(db)
+	svc := service.NewReviewService(articleRepo, reviewRepo, nil)
+	h := NewReviewHandler(svc)
+	return h, db
+}
+
+func setupGinCtx(method, path, body string, headers map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	c.Request = req
+	return c, w
+}
+
+func TestSubmitForReview_Handler(t *testing.T) {
+	h, db := newReviewHandlerTest(t)
+
+	// 创建一篇草稿
+	a := &models.Article{AuthorID: "user-1", Title: "测试", Content: "test", Status: models.StatusDraft}
+	db.Create(a)
+
+	c, w := setupGinCtx("POST", "/api/articles/"+a.ID+"/submit-review", "", map[string]string{
+		"X-User-ID": "user-1",
+	})
+	c.Params = gin.Params{{Key: "id", Value: a.ID}}
+
+	h.SubmitForReview(c)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("期望 200, 实际=%d, body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestSubmitForReview_NoAuth(t *testing.T) {
+	h, _ := newReviewHandlerTest(t)
+
+	c, w := setupGinCtx("POST", "/api/articles/xxx/submit-review", "", nil)
+	c.Params = gin.Params{{Key: "id", Value: "xxx"}}
+
+	h.SubmitForReview(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("期望 401, 实际=%d", w.Code)
+	}
+}
+
+func TestReviewArticle_Handler(t *testing.T) {
+	h, db := newReviewHandlerTest(t)
+
+	a := &models.Article{AuthorID: "user-1", Title: "测试", Content: "test", Status: models.StatusPendingReview}
+	db.Create(a)
+
+	body := `{"action":"approved","comment":"可以发布"}`
+	c, w := setupGinCtx("POST", "/api/admin/articles/"+a.ID+"/review", body, map[string]string{
+		"X-User-ID": "admin-1",
+	})
+	c.Params = gin.Params{{Key: "id", Value: a.ID}}
+
+	h.ReviewArticle(c)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("期望 200, 实际=%d, body=%s", w.Code, w.Body.String())
+	}
+	// 验证返回数据含 record
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["data"] == nil {
+		t.Error("期望返回 data 字段")
+	}
+}
+
+func TestGetReviewHistory_Handler(t *testing.T) {
+	h, db := newReviewHandlerTest(t)
+
+	a := &models.Article{AuthorID: "user-1", Title: "测试", Content: "test", Status: models.StatusDraft}
+	db.Create(a)
+	db.Create(&models.ReviewRecord{ArticleID: a.ID, ReviewerID: "admin-1", Action: models.ReviewActionApproved})
+
+	c, w := setupGinCtx("GET", "/api/articles/"+a.ID+"/review-history", "", map[string]string{
+		"X-User-ID": "user-1",
+	})
+	c.Params = gin.Params{{Key: "id", Value: a.ID}}
+
+	h.GetReviewHistory(c)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("期望 200, 实际=%d", w.Code)
+	}
+}
+
+func TestListPendingReviews_Handler(t *testing.T) {
+	h, db := newReviewHandlerTest(t)
+
+	for i := 0; i < 5; i++ {
+		db.Create(&models.Article{AuthorID: "user-1", Title: "待审", Content: "test", Status: models.StatusPendingReview})
+	}
+
+	c, w := setupGinCtx("GET", "/api/admin/reviews/pending?page=1&size=3", "", nil)
+	h.ListPendingReviews(c)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("期望 200, 实际=%d", w.Code)
+	}
+}
+```
+
+- [ ] **Step 3: 运行测试并验证覆盖率**
+
+Run: `cd backend/services/content-service && go test ./handler/... -cover`
+Expected: PASS，覆盖率 >= 70%
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add backend/services/content-service/handler/review.go
-git commit -m "feat: 新增 ReviewHandler HTTP 处理层"
+git add backend/services/content-service/handler/review.go backend/services/content-service/handler/review_test.go
+git commit -m "feat: 新增 ReviewHandler + 测试"
 ```
 
 ---
@@ -460,10 +982,10 @@ router.GET("/api/admin/reviews/pending", reviewH.ListPendingReviews)
 router.POST("/api/admin/articles/:id/review", reviewH.ReviewArticle)
 ```
 
-- [ ] **Step 2: 验证编译**
+- [ ] **Step 2: 运行全部测试确保集成正确**
 
-Run: `cd backend/services/content-service && go build ./...`
-Expected: 编译通过
+Run: `cd backend/services/content-service && go test ./... -cover`
+Expected: 所有包 PASS，每个包覆盖率 >= 70%
 
 - [ ] **Step 3: Commit**
 
@@ -545,16 +1067,58 @@ s.consumer.Subscribe("notification_review_rejected", "article.review_rejected", 
 
 注意：NewSubmission 事件的 `UserID` 是真实管理员 ID，不是伪造的 `"admin"`。管理员用自己已有的 `GET /api/notifications` API 即可拉到——无需新增路由。
 
-- [ ] **Step 3: 验证编译**
+- [ ] **Step 3: 新增 GetAdminUserIDs 测试**
 
-Run: `cd backend/services/notification-service && go build ./...`
-Expected: 编译通过
+在 `repository/notification_test.go` 末尾追加：
 
-- [ ] **Step 4: Commit**
+```go
+func TestGetAdminUserIDs(t *testing.T) {
+	db := newTestDB(t)
+	// 手动创建 users 表用于测试
+	db.Exec("DROP TABLE IF EXISTS users")
+	db.Exec("CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, role TEXT)")
+	db.Exec("INSERT INTO users (id, username, role) VALUES ('admin-1', '管理员1', 'admin')")
+	db.Exec("INSERT INTO users (id, username, role) VALUES ('admin-2', '管理员2', 'admin')")
+	db.Exec("INSERT INTO users (id, username, role) VALUES ('user-1', '普通用户', 'user')")
+
+	repo := NewNotificationRepository(db)
+	ids, err := repo.GetAdminUserIDs()
+	if err != nil {
+		t.Fatalf("GetAdminUserIDs() 失败: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Errorf("期望 2 个管理员, 实际=%d", len(ids))
+	}
+}
+
+func TestGetAdminUserIDs_Empty(t *testing.T) {
+	db := newTestDB(t)
+	db.Exec("DROP TABLE IF EXISTS users")
+	db.Exec("CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, role TEXT)")
+	// 不插入任何 admin
+
+	repo := NewNotificationRepository(db)
+	ids, err := repo.GetAdminUserIDs()
+	if err != nil {
+		t.Fatalf("GetAdminUserIDs() 失败: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("期望 0 个管理员, 实际=%d", len(ids))
+	}
+}
+```
+
+- [ ] **Step 4: 运行测试并验证覆盖率**
+
+Run: `cd backend/services/notification-service && go test ./... -cover`
+Expected: 全部 PASS，每个包覆盖率 >= 70%
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/services/notification-service/
-git commit -m "feat: notification-service 新增审稿事件消费者，通知真实管理员"
+git commit -m "feat: notification-service 新增审稿事件消费者 + 测试"
+```
 ```
 
 ---
@@ -584,10 +1148,10 @@ router.POST("/articles/:id/review", proxyTo("article"))
 
 注意：`setupAdminRoutes` 的 group 前缀是 `/api/admin`，所以完整路径为 `/api/admin/reviews/pending` 和 `/api/admin/articles/:id/review`。
 
-- [ ] **Step 2: 验证编译**
+- [ ] **Step 2: 验证无破坏**
 
-Run: `cd backend/api-gateway && go build ./...`
-Expected: 编译通过
+Run: `cd backend/api-gateway && go build ./... && go test ./...`
+Expected: 编译通过，测试 PASS
 
 - [ ] **Step 3: Commit**
 
