@@ -1,0 +1,59 @@
+<h2>个人中心 — 修订方案</h2>
+<p class="subtitle">后端极简化，状态筛选放到前端</p>
+
+<div class="section">
+  <h3>后端改动（精简）</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>仓库层 — 无需改动</h4>
+      <p>复用现有 ListByAuthor(authorID, page, size)，不新增方法</p>
+    </div>
+    <div class="pros"><h4>处理器（1 处新增）</h4>
+      <p>handler/article.go 新增 ListMyArticles handler<br>读取 X-User-ID，调用现有 service.ListMyArticles</p>
+    </div>
+    <div class="pros"><h4>路由（2 处新增）</h4>
+      <p>content-service/main.go → GET /api/articles/my<br>api-gateway/router.go → 代理注册</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>前端数据流</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:14px;line-height:2;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:#3498db;color:#fff;padding:2px 8px;border-radius:3px;">1</span>
+        <span>进入页面 → 调用 <code>GET /api/articles/my?page=1&size=50</code></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:#3498db;color:#fff;padding:2px 8px;border-radius:3px;">2</span>
+        <span>拿到全部文章数组 → 前端 computed 按 status 分组：</span>
+      </div>
+      <div style="margin-left:32px;font-family:monospace;color:#555;">
+        drafts = articles.filter(a => a.status === 'draft')<br>
+        pending = articles.filter(a => a.status === 'pending_review')<br>
+        published = articles.filter(a => a.status === 'published')
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:#3498db;color:#fff;padding:2px 8px;border-radius:3px;">3</span>
+        <span>切换标签 → 纯客户端切换，不请求网络</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>涉及文件清单</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr style="border-bottom:1px solid #e0e0e0;">
+      <th style="text-align:left;padding:8px;">文件</th>
+      <th style="text-align:left;padding:8px;">改动</th>
+    </tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">handler/article.go</td><td style="padding:8px;">新增 ListMyArticles handler</td></tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">content-service/main.go</td><td style="padding:8px;">注册 GET /api/articles/my</td></tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">api-gateway/routes/router.go</td><td style="padding:8px;">注册代理路由</td></tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">frontend/src/api/index.ts</td><td style="padding:8px;">新增 getMyArticles</td></tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">frontend/src/router/index.ts</td><td style="padding:8px;">新增 /profile 路由</td></tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">components/Navbar.vue</td><td style="padding:8px;">用户名改为链接</td></tr>
+    <tr style="border-bottom:1px solid #e0e0e0;"><td style="padding:8px;font-family:monospace;">views/ProfileView.vue</td><td style="padding:8px;">新建页面</td></tr>
+  </table>
+</div>
