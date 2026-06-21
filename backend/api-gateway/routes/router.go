@@ -108,6 +108,10 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 	router.PUT("/api/notifications/:id/read", proxyTo("notification"))
 	router.PUT("/api/notifications/read-all", proxyTo("notification"))
 
+	// 审稿相关
+	router.POST("/api/articles/:id/submit-review", proxyTo("article"))
+	router.GET("/api/articles/:id/review-history", proxyTo("article"))
+
 	// 审计日志
 	router.GET("/api/audit-logs", proxyTo("audit"))
 }
@@ -125,6 +129,10 @@ func setupAdminRoutes(router *gin.RouterGroup) {
 	// 评论管理
 	router.GET("/comments", proxyTo("interaction"))
 	router.DELETE("/comments/:id", proxyTo("interaction"))
+
+	// 审稿管理
+	router.GET("/reviews/pending", proxyTo("article"))
+	router.POST("/articles/:id/review", proxyTo("article"))
 }
 
 // proxyTo 返回一个反向代理处理器（复用全局单例 proxy，共享 HTTP 连接池）
