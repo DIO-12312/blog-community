@@ -26,6 +26,7 @@
 
     <!-- 文章列表 -->
     <div v-if="loading" class="loading">加载中...</div>
+    <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else-if="currentArticles.length === 0" class="empty">暂无文章</div>
     <div v-else class="article-list">
       <div v-for="article in currentArticles" :key="article.id" class="article-item">
@@ -88,6 +89,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(50)
 const loading = ref(false)
+const error = ref('')
 const currentTab = ref('published')
 
 const tabs = computed(() => [
@@ -110,7 +112,14 @@ const currentArticles = computed(() => {
 
 function stripMarkdown(text: string) {
   if (!text) return ''
-  const plain = text.replace(/[#*`>\[\]]/g, '').replace(/\n/g, ' ')
+  let plain = text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/^>\s?/gm, '')
+    .replace(/\n/g, ' ')
   return plain.length > 200 ? plain.slice(0, 200) + '...' : plain
 }
 
@@ -139,10 +148,13 @@ async function handleDelete(id: string) {
 
 async function fetchArticles() {
   loading.value = true
+  error.value = ''
   try {
     const res: any = await articleApi.getMyArticles(page.value, pageSize.value)
     articles.value = res.data || []
     total.value = res.pagination?.total || 0
+  } catch {
+    error.value = '加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -340,6 +352,12 @@ onMounted(() => {
   text-align: center;
   padding: 48px;
   color: #999;
+}
+
+.error {
+  text-align: center;
+  padding: 48px;
+  color: #e74c3c;
 }
 
 .pagination {

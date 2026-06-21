@@ -1,0 +1,40 @@
+<h2>文章列表中的每篇文章卡片应该展示哪些信息？</h2>
+<p class="subtitle">不同状态的文章点击后的操作也不同</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="title" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>标题 + 摘要</h3>
+      <p>文章标题和摘要文字</p>
+    </div>
+  </div>
+  <div class="option" data-choice="time" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>时间信息</h3>
+      <p>创建时间 / 发布时间 / 最后编辑时间</p>
+    </div>
+  </div>
+  <div class="option" data-choice="stats" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>互动数据</h3>
+      <p>阅读量、点赞数、评论数</p>
+    </div>
+  </div>
+  <div class="option" data-choice="category" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>分类标签</h3>
+      <p>文章所属分类</p>
+    </div>
+  </div>
+  <div class="option" data-choice="actions" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>操作按钮</h3>
+      <p>草稿：编辑/删除 | 待审核：查看审核进度 | 已发布：查看/编辑</p>
+    </div>
+  </div>
+</div>
