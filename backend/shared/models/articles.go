@@ -26,7 +26,8 @@ type Category struct {
 }
 
 const (
-	StatusDraft     = "draft"
-	StatusPublished = "published"
+	StatusDraft         = "draft"
+	StatusPendingReview = "pending_review"
+	StatusPublished     = "published"
 	StatusDelete    = "deleted"
 )

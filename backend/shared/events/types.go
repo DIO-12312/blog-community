@@ -9,7 +9,9 @@ const (
 	EventArticleDeleted   = "article.deleted"
 	EventCommentCreated   = "comment.created"
 	EventUserFollowed     = "user.followed"
-	EventArticleLiked     = "article.liked"
+	EventArticleLiked               = "article.liked"
+	EventArticleSubmittedForReview   = "article.submitted_for_review"
+	EventArticleReviewRejected       = "article.review_rejected"
 )
 
 // Event 事件结构
