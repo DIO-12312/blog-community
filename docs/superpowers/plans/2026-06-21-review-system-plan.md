@@ -13,8 +13,8 @@
 
 ```bash
 git add .
-git commit -m "chore: 2026-06-21 审核系统开始"
-git checkout -b 审核系统
+git commit -m "审核功能: 2026-06-21 审核系统开始"
+git checkout -b 审核功能
 ```
 
 
@@ -1898,5 +1898,5 @@ Wait for all services healthy.
 
 ```bash
 git add -A
-git commit -m "test: 审稿系统端到端验证通过"
+git commit -m "审核系统: 审稿系统端到端验证通过"
 ```
