@@ -64,6 +64,9 @@ export const articleApi = {
   getReviewHistory(id: string) {
     return api.get(`/articles/${id}/review-history`)
   },
+  getMyArticles(page = 1, size = 50) {
+    return api.get('/articles/my', { params: { page, size } })
+  },
 }
 
 // ===== 评论 API =====
