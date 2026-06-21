@@ -477,28 +477,49 @@ git commit -m "feat: content-service 注册审稿路由与依赖注入"
 ### Task 6: notification-service 新增审稿事件消费者
 
 **Files:**
-- Modify: `backend/services/notification-service/service/notification.go`
-- Modify: `backend/services/notification-service/main.go`
+- Modify: `backend/services/notification-service/repository/notification.go` — 新增 `GetAdminUserIDs`
+- Modify: `backend/services/notification-service/service/notification.go` — 新增两个事件消费者
 
-- [ ] **Step 1: 添加审稿事件消费者**
+- [ ] **Step 1: Repository 新增查询管理员 ID 方法**
 
-在 `notification.go` 的 `StartListening()` 方法末尾（`s.consumer.Subscribe("notification_like"...` 之后，`}` 之前）追加两个新的订阅：
+在 `repository/notification.go` 中追加：
 
 ```go
-// 监听审稿提交事件 → 通知所有管理员
+// GetAdminUserIDs 查询所有管理员的用户 ID
+func (r *NotificationRepository) GetAdminUserIDs() ([]string, error) {
+	var ids []string
+	err := r.db.Model(&models.User{}).Where("role = ?", "admin").Pluck("id", &ids).Error
+	return ids, err
+}
+```
+
+- [ ] **Step 2: 添加审稿事件消费者**
+
+在 `notification.go` 的 `StartListening()` 方法末尾追加两个订阅：
+
+```go
+// 监听审稿提交事件 → 通知所有管理员（每人一条）
 s.consumer.Subscribe("notification_review_submitted", "article.submitted_for_review", func(event events.Event) error {
 	articleID := event.Data["article_id"].(string)
 	title := event.Data["title"].(string)
 
-	// 创建通知给所有管理员（user_id 用特殊标记 "admin"，
-	// 前端管理员拉取时查询 user_id = "admin" 的通知）
-	notification := &models.Notification{
-		UserID:   "admin",
-		Type:     "new_submission",
-		Content:  fmt.Sprintf("《%s》已提交审核，请处理", title),
-		SourceID: articleID,
+	adminIDs, err := s.repo.GetAdminUserIDs()
+	if err != nil {
+		return err
 	}
-	return s.repo.Create(notification)
+
+	for _, adminID := range adminIDs {
+		notification := &models.Notification{
+			UserID:   adminID,
+			Type:     "new_submission",
+			Content:  fmt.Sprintf("《%s》已提交审核，请处理", title),
+			SourceID: articleID,
+		}
+		if err := s.repo.Create(notification); err != nil {
+			log.Printf("创建管理员通知失败 (admin: %s): %v", adminID, err)
+		}
+	}
+	return nil
 })
 
 // 监听审稿驳回事件 → 通知作者
@@ -522,103 +543,18 @@ s.consumer.Subscribe("notification_review_rejected", "article.review_rejected", 
 })
 ```
 
-- [ ] **Step 2: 修改 main.go 拉取管理员通知**
+注意：NewSubmission 事件的 `UserID` 是真实管理员 ID，不是伪造的 `"admin"`。管理员用自己已有的 `GET /api/notifications` API 即可拉到——无需新增路由。
 
-在 `notification-service/main.go` 中，现有的 `router.GET("/api/notifications", h.GetNotifications)` 已经支持按 userID 查询。前端管理员调用时传 `X-User-ID` header，后端通过 `c.GetHeader("X-User-ID")` 获取。但管理员也需要看到 `user_id = "admin"` 的公共通知。需修改 `GetNotifications` 的查询逻辑：
-
-在 `repository/notification.go` 中，检查现有 `GetByUserID` 方法。如果只查询单用户，需要改为：当 userID 是管理员时，同时查询 `user_id = 'admin'` 或 `user_id = <当前管理员ID>` 的通知。
-
-简化处理：新增 `GetAdminNotifications` 方法（或者修改 handler 层，管理员调用时单独处理）。这里采用简单方案——修改 `GetByUserID` 查询，增加 OR 条件。
-
-在 `repository/notification.go` 的 `GetByUserID` 方法中（需查看现有实现），将查询条件改为：
-
-```go
-func (r *NotificationRepository) GetByUserID(userID string, page, size int) ([]models.Notification, int64, error) {
-	var notifications []models.Notification
-	var total int64
-
-	query := r.db.Model(&models.Notification{}).Where("user_id = ?", userID)
-	query.Count(&total)
-
-	err := query.
-		Order("created_at DESC").
-		Offset((page - 1) * size).
-		Limit(size).
-		Find(&notifications).Error
-
-	return notifications, total, err
-}
-```
-
-注意：管理员通知目前存 `user_id = "admin"`，所以管理员调用时传自己的 userID 只能拿到个人通知。前台在 Navbar 里获取 unread count 和通知列表时需要额外处理。简化处理：在 service 层加一个方法合并管理员的两类通知。在 `notification.go` service 中新增：
-
-```go
-// GetAdminNotifications 管理员获取通知（个人 + 公共管理通知）
-func (s *NotificationService) GetAdminNotifications(adminID string, page, size int) ([]models.Notification, int64, error) {
-	return s.repo.GetAdminNotifications(adminID, page, size)
-}
-```
-
-在 repository 中新增：
-
-```go
-// GetAdminNotifications 管理员通知（个人 + 公共）
-func (r *NotificationRepository) GetAdminNotifications(adminID string, page, size int) ([]models.Notification, int64, error) {
-	var notifications []models.Notification
-	var total int64
-
-	query := r.db.Model(&models.Notification{}).
-		Where("user_id = ? OR user_id = ?", adminID, "admin")
-	query.Count(&total)
-
-	err := query.
-		Order("created_at DESC").
-		Offset((page - 1) * size).
-		Limit(size).
-		Find(&notifications).Error
-
-	return notifications, total, err
-}
-```
-
-- [ ] **Step 3: 注册管理员通知路由**
-
-在 `main.go` 中添加管理员通知路由：
-
-```go
-router.GET("/api/admin/notifications", h.GetAdminNotifications)
-```
-
-在 handler 中新增：
-
-```go
-// GetAdminNotifications GET /api/admin/notifications
-func (h *NotificationHandler) GetAdminNotifications(c *gin.Context) {
-	adminID := c.GetHeader("X-User-ID")
-	if adminID == "" {
-		utils.Error(c, http.StatusUnauthorized, "缺少用户身份")
-		return
-	}
-	page, size := parsePagination(c)
-	notifications, total, err := h.service.GetAdminNotifications(adminID, page, size)
-	if err != nil {
-		utils.Error(c, http.StatusInternalServerError, "获取通知失败")
-		return
-	}
-	utils.Paginated(c, notifications, "获取成功", total, page, size)
-}
-```
-
-- [ ] **Step 4: 验证编译**
+- [ ] **Step 3: 验证编译**
 
 Run: `cd backend/services/notification-service && go build ./...`
 Expected: 编译通过
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add backend/services/notification-service/
-git commit -m "feat: notification-service 新增审稿事件消费者和管理员通知查询"
+git commit -m "feat: notification-service 新增审稿事件消费者，通知真实管理员"
 ```
 
 ---
