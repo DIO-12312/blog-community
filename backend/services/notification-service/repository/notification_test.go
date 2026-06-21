@@ -249,3 +249,36 @@ func TestGetUnreadCount(t *testing.T) {
 		t.Errorf("全部已读: 期望=0, 实际=%d", count)
 	}
 }
+
+func TestGetAdminUserIDs(t *testing.T) {
+	db := newTestDB(t)
+	// 使用 AutoMigrate 创建 users 表（确保与 GORM 模型一致，包括 deleted_at）
+	db.AutoMigrate(&models.User{})
+	db.Exec("INSERT INTO users (id, username, role, created_at, updated_at) VALUES ('admin-1', '管理员1', 'admin', datetime('now'), datetime('now'))")
+	db.Exec("INSERT INTO users (id, username, role, created_at, updated_at) VALUES ('admin-2', '管理员2', 'admin', datetime('now'), datetime('now'))")
+	db.Exec("INSERT INTO users (id, username, role, created_at, updated_at) VALUES ('user-1', '普通用户', 'user', datetime('now'), datetime('now'))")
+
+	repo := NewNotificationRepository(db)
+	ids, err := repo.GetAdminUserIDs()
+	if err != nil {
+		t.Fatalf("GetAdminUserIDs() 失败: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Errorf("期望 2 个管理员, 实际=%d", len(ids))
+	}
+}
+
+func TestGetAdminUserIDs_Empty(t *testing.T) {
+	db := newTestDB(t)
+	db.AutoMigrate(&models.User{})
+	// 不插入任何 admin
+
+	repo := NewNotificationRepository(db)
+	ids, err := repo.GetAdminUserIDs()
+	if err != nil {
+		t.Fatalf("GetAdminUserIDs() 失败: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("期望 0 个管理员, 实际=%d", len(ids))
+	}
+}
