@@ -8,6 +8,16 @@
 
 **Tech Stack:** Go + Gin + GORM (后端), Vue 3 + TypeScript + Pinia (前端), RabbitMQ (事件通知)
 
+### Task 0: Git 分支管理 
+- [ ] **Step 1: 创建新分支**
+
+```bash
+git add .
+git commit -m "chore: 2026-06-21 审核系统开始"
+git checkout -b 审核系统
+```
+
+
 ---
 
 ### Task 1: 数据模型与常量
@@ -718,26 +728,36 @@ git commit -m "feat: 前端新增审稿 API 方法和路由"
 
 - [ ] **Step 1: 修改 EditorView，添加审稿状态展示和提交按钮**
 
-修改 `<template>`，在表单下方（`<form>` 结束后）添加：
+修改 `<template>`：
+
+1. 将表单提交按钮的文字改为动态：
+
+```html
+<button type="submit" :disabled="submitting">
+  {{ submitting ? '保存中...' : submitButtonText }}
+</button>
+```
+
+2. 在表单下方（`<form>` 结束后）添加审稿状态区域：
 
 ```html
     <!-- 审稿状态（仅编辑已有文章时显示） -->
     <div v-if="isEdit && reviewStatus" class="review-section">
       <div class="review-status" :class="'status-' + reviewStatus">
-        <span v-if="reviewStatus === 'pending_review'">⏳ 审核中，暂不可编辑</span>
-        <span v-else-if="reviewStatus === 'published'">✓ 已通过审核并发布</span>
-        <span v-else-if="reviewStatus === 'draft' && reviewHistory.length > 0">✗ 已被退回，可修改后重新提交</span>
+        <span v-if="reviewStatus === 'pending_review'">审核中，暂不可编辑</span>
+        <span v-else-if="reviewStatus === 'published'">已通过审核并发布</span>
+        <span v-else-if="reviewStatus === 'draft' && reviewHistory.length > 0">已被退回，可修改后重新提交</span>
       </div>
 
-      <!-- 提交审稿按钮 -->
+      <!-- 重新审核按钮（驳回后重投） -->
       <button
-        v-if="reviewStatus === 'draft'"
+        v-if="reviewStatus === 'draft' && reviewHistory.length > 0"
         type="button"
         class="btn-submit-review"
         :disabled="submittingReview"
-        @click="handleSubmitReview"
+        @click="handleResubmitReview"
       >
-        {{ submittingReview ? '提交中...' : '提交审稿' }}
+        {{ submittingReview ? '提交中...' : '重新审核' }}
       </button>
 
       <!-- 审稿历史 -->
@@ -745,7 +765,7 @@ git commit -m "feat: 前端新增审稿 API 方法和路由"
         <h3>审稿记录</h3>
         <div v-for="record in reviewHistory" :key="record.id" class="review-record">
           <span :class="record.action === 'approved' ? 'tag-approved' : 'tag-rejected'">
-            {{ record.action === 'approved' ? '✓ 通过' : '✗ 驳回' }}
+            {{ record.action === 'approved' ? '通过' : '驳回' }}
           </span>
           <span class="review-time">{{ formatDate(record.created_at) }}</span>
           <p v-if="record.comment" class="review-comment">{{ record.comment }}</p>
@@ -761,7 +781,10 @@ const reviewStatus = ref('')
 const reviewHistory = ref<any[]>([])
 const submittingReview = ref(false)
 
-// 加载审稿信息（在 onMounted 中已有 fetchArticle 后追加）
+// 提交按钮文字：新建文章 = "发布文章"，编辑已有 = "保存草稿"
+const submitButtonText = computed(() => isEdit.value ? '保存草稿' : '发布文章')
+
+// 加载审稿信息
 async function fetchReviewInfo() {
   try {
     const res: any = await articleApi.getReviewHistory(editId)
@@ -769,15 +792,15 @@ async function fetchReviewInfo() {
   } catch { /* 忽略 */ }
 }
 
-// 提交审稿
-async function handleSubmitReview() {
-  if (!confirm('确认提交审稿？提交后将无法编辑。')) return
+// 重新审核（驳回后重投，仅调用审稿 API）
+async function handleResubmitReview() {
+  if (!confirm('确认重新提交审核？提交后将无法编辑。')) return
   submittingReview.value = true
   try {
     await articleApi.submitReview(editId)
     reviewStatus.value = 'pending_review'
   } catch (e: any) {
-    error.value = e?.message || '提交审稿失败'
+    error.value = e?.message || '重新审核失败'
   } finally {
     submittingReview.value = false
   }
@@ -808,7 +831,7 @@ onMounted(async () => {
 })
 ```
 
-修改 `handleSubmit`，创建新文章时默认不再自动发布（移除 `await articleApi.publish(res.data.id)`）：
+修改 `handleSubmit`。新建文章时：创建（draft）→ 立即提交审稿 → 跳转到编辑页展示"审核中"；编辑已有文章时：仅保存草稿：
 
 ```typescript
 async function handleSubmit() {
@@ -816,18 +839,23 @@ async function handleSubmit() {
   error.value = ''
   try {
     if (isEdit.value) {
+      // 编辑已有文章 → 保存草稿
       await articleApi.update(editId, {
         title: title.value,
         content: content.value,
       })
+      router.push('/')
     } else {
-      await articleApi.create({
+      // 新建文章 → 创建草稿 → 立即提交审稿 → 跳转到编辑页
+      const res: any = await articleApi.create({
         title: title.value,
         content: content.value,
         category_id: categoryId.value,
       })
+      const newId = res.data.id
+      await articleApi.submitReview(newId)
+      router.push(`/editor/${newId}`)
     }
-    router.push('/')
   } catch (e: any) {
     error.value = e.message || '保存失败'
   } finally {
@@ -836,7 +864,10 @@ async function handleSubmit() {
 }
 ```
 
-注意：新文章创建后应跳转到编辑页让用户提交审稿，或者直接留在编辑器。这里保持跳转到首页，用户可从文章列表或通知中找到自己的文章继续操作。
+关键流程：
+- **新建文章**：按钮"发布文章" → `create`（status=draft）→ `submitReview`（draft→pending_review）→ 跳转 `/editor/:id`（页面显示"审核中"）
+- **驳回后重投**：按钮"重新审核" → `submitReview`（draft→pending_review）→ 页面变"审核中"
+- **仅保存草稿**：按钮"保存草稿" → `update` → 回到首页
 
 - [ ] **Step 2: 添加审稿区域样式**
 
