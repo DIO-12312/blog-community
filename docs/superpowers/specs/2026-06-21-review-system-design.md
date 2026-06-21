@@ -64,21 +64,7 @@ type ReviewRecord struct {
 }
 ```
 
-**DDL**：
-```sql
-CREATE TABLE review_records (
-    id          VARCHAR(36)  PRIMARY KEY,
-    article_id  VARCHAR(36)  NOT NULL,
-    reviewer_id VARCHAR(36)  NOT NULL,
-    action      VARCHAR(20)  NOT NULL,
-    comment     TEXT,
-    created_at  DATETIME     NOT NULL,
-    updated_at  DATETIME     NOT NULL,
-    deleted_at  DATETIME,
-    INDEX idx_review_records_article (article_id),
-    INDEX idx_review_records_reviewer (reviewer_id)
-);
-```
+建表由 GORM AutoMigrate 自动完成，Go 模型即表结构定义。
 
 ---
 
