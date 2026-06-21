@@ -91,7 +91,6 @@ type ReviewRecord struct {
 | `pending_review` | 管理员通过 | `published` |
 | `pending_review` | 管理员驳回 | `draft` |
 | `published` | 不可进入审稿流 | — |
-| `deleted` | 不可操作 | — |
 
 ### 后端校验规则
 
