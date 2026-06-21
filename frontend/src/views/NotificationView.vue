@@ -83,8 +83,19 @@ async function handleMarkAllRead() {
 }
 
 function handleClick(item: any) {
-  if (item.article_id) {
-    router.push(`/article/${item.article_id}`)
+  const sourceId = item.source_id
+  if (!sourceId) return
+
+  switch (item.type) {
+    case 'new_submission':
+      router.push('/admin/reviews')
+      break
+    case 'review_rejected':
+      router.push(`/editor/${sourceId}`)
+      break
+    default:
+      // comment, follow, like → navigate to article
+      router.push(`/article/${sourceId}`)
   }
 }
 

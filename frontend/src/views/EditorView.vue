@@ -1,7 +1,7 @@
 <template>
   <div class="editor-container">
     <h1>{{ isEdit ? '编辑文章' : '写文章' }}</h1>
-    <form @submit.prevent="handleSubmit">
+    <form @submit.prevent>
       <div class="form-group">
         <label>标题</label>
         <input
@@ -29,9 +29,14 @@
         ></textarea>
       </div>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="submitting">
-        {{ submitting ? '保存中...' : submitButtonText }}
-      </button>
+      <div class="form-actions">
+        <button type="button" class="btn-submit-review" :disabled="submitting" @click="handleSubmitForReview">
+          {{ submitting ? '提交中...' : '提交审核' }}
+        </button>
+        <button type="button" class="btn-save-draft" :disabled="submitting" @click="handleSaveDraft">
+          保存草稿
+        </button>
+      </div>
     </form>
 
     <!-- 审稿状态（仅编辑已有文章时显示） -->
@@ -69,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { articleApi } from '@/api'
 
@@ -88,9 +93,6 @@ const reviewHistory = ref<any[]>([])
 const submittingReview = ref(false)
 
 const editId = (route.params.id as string) || ''
-
-// 提交按钮文字：新建文章 = "发布文章"，编辑已有 = "保存草稿"
-const submitButtonText = computed(() => isEdit.value ? '保存草稿' : '发布文章')
 
 // 加载审稿信息
 async function fetchReviewInfo() {
@@ -126,6 +128,7 @@ onMounted(async () => {
       const res: any = await articleApi.getDetail(editId)
       title.value = res.data.title
       content.value = res.data.content
+      categoryId.value = res.data.category_id || ''
       reviewStatus.value = res.data.status
       await fetchReviewInfo()
     } catch {
@@ -134,30 +137,54 @@ onMounted(async () => {
   }
 })
 
-async function handleSubmit() {
+// 保存草稿（不提交审核）
+async function handleSaveDraft() {
   submitting.value = true
   error.value = ''
   try {
     if (isEdit.value) {
-      // 编辑已有文章 → 保存草稿
       await articleApi.update(editId, {
         title: title.value,
         content: content.value,
       })
-      router.push('/')
     } else {
-      // 新建文章 → 创建草稿 → 立即提交审稿 → 跳转到编辑页
       const res: any = await articleApi.create({
         title: title.value,
         content: content.value,
         category_id: categoryId.value,
       })
-      const newId = res.data.id
-      await articleApi.submitReview(newId)
-      router.push(`/editor/${newId}`)
+      router.push(`/editor/${res.data.id}`)
     }
   } catch (e: any) {
     error.value = e.message || '保存失败'
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 提交审核（保存 + 提交审核）
+async function handleSubmitForReview() {
+  submitting.value = true
+  error.value = ''
+  try {
+    if (isEdit.value) {
+      await articleApi.update(editId, {
+        title: title.value,
+        content: content.value,
+      })
+      await articleApi.submitReview(editId)
+      reviewStatus.value = 'pending_review'
+    } else {
+      const res: any = await articleApi.create({
+        title: title.value,
+        content: content.value,
+        category_id: categoryId.value,
+      })
+      await articleApi.submitReview(res.data.id)
+      router.push(`/editor/${res.data.id}`)
+    }
+  } catch (e: any) {
+    error.value = e.message || '提交失败'
   } finally {
     submitting.value = false
   }
@@ -209,7 +236,12 @@ async function handleSubmit() {
   color: #e74c3c;
 }
 
-button[type='submit'] {
+.form-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-submit-review {
   padding: 10px 32px;
   background: #3498db;
   color: #fff;
@@ -219,7 +251,30 @@ button[type='submit'] {
   cursor: pointer;
 }
 
-button[type='submit']:disabled {
+.btn-submit-review:hover {
+  background: #2980b9;
+}
+
+.btn-submit-review:disabled {
+  opacity: 0.6;
+}
+
+.btn-save-draft {
+  padding: 10px 32px;
+  background: #fff;
+  color: #555;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn-save-draft:hover {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.btn-save-draft:disabled {
   opacity: 0.6;
 }
 

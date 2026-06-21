@@ -43,6 +43,9 @@ export const useUserStore = defineStore('user', () => {
     // 确认都成功后再保存 token
     token.value = newToken
     localStorage.setItem('token', newToken)
+
+    // 登录后立即拉取未读通知数
+    await fetchUnreadCount()
   }
 
   // 注册
@@ -68,5 +71,19 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  return { token, userInfo, unreadCount, isLoggedIn, isAdmin, login, register, logout, fetchUnreadCount }
+  // 页面刷新后从 localStorage 的 JWT 恢复用户信息
+  async function restoreSession() {
+    if (!token.value) return
+    try {
+      const [, jwtPayload] = token.value.split('.')
+      if (!jwtPayload) return
+      const payload = JSON.parse(atob(jwtPayload))
+      const profile: any = await userApi.getProfile(payload.user_id)
+      userInfo.value = profile.data
+    } catch {
+      // 静默失败
+    }
+  }
+
+  return { token, userInfo, unreadCount, isLoggedIn, isAdmin, login, register, logout, fetchUnreadCount, restoreSession }
 })

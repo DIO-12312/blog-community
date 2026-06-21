@@ -24,6 +24,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -33,6 +38,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   elasticsearch:
     build:
@@ -85,6 +95,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   content-service:
     build:
@@ -104,9 +116,9 @@ services:
       mysql:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
   interaction-service:
     build:
@@ -126,9 +138,9 @@ services:
       mysql:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
   notification-service:
     build:
@@ -147,7 +159,7 @@ services:
       mysql:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
   search-service:
     build:
@@ -162,7 +174,7 @@ services:
       elasticsearch:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
   audit-service:
     build:
@@ -181,7 +193,7 @@ services:
       mysql:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   mysql_data:

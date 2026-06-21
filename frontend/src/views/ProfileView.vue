@@ -129,7 +129,11 @@ function formatDate(dateStr: string) {
 }
 
 function goToArticle(article: any) {
-  router.push(`/article/${article.id}`)
+  if (article.status === 'draft') {
+    router.push(`/editor/${article.id}`)
+  } else {
+    router.push(`/article/${article.id}`)
+  }
 }
 
 function goToEditor(id: string) {

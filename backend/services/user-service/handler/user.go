@@ -74,13 +74,14 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 	utils.Success(c, http.StatusOK, "获取用户信息成功", gin.H{
-		"id":       user.ID,
-		"username": user.Username,
-		"email":    user.Email,
-		"avatar":   user.Avatar,
-		"bio":      user.Bio,
-		"role":     user.Role,
-		"banned":   user.Banned,
+		"created_at": user.CreatedAt,
+		"id":         user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"avatar":     user.Avatar,
+		"bio":        user.Bio,
+		"role":       user.Role,
+		"banned":     user.Banned,
 	})
 }
 

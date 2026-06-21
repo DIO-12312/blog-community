@@ -95,8 +95,8 @@ func main() {
 	router.GET("/api/admin/reviews/pending", reviewH.ListPendingReviews)
 	router.POST("/api/admin/articles/:id/review", reviewH.ReviewArticle)
 
-	// 6. 启动浏览计数定期同步任务（每 5 分钟将 Redis 计数写入 MySQL）
-	svc.StartViewCountSyncWorker(context.Background(), 5*time.Minute)
+	// 6. 启动浏览计数定期同步任务（每 1 分钟将 Redis 计数写入 MySQL）
+	svc.StartViewCountSyncWorker(context.Background(), time.Minute)
 
 	// 7. 启动服务
 	log.Println("Article service listening on :8002")

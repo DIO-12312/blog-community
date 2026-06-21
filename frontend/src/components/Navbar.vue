@@ -9,9 +9,9 @@
         <router-link v-if="userStore.isAdmin" to="/admin" class="nav-link">管理</router-link>
         <router-link v-if="userStore.isAdmin" to="/admin/reviews" class="nav-link">审稿</router-link>
         <router-link to="/editor" class="nav-link">写文章</router-link>
-        <router-link to="/notifications" class="nav-link">
+        <router-link to="/notifications" class="nav-link nav-notification">
           通知
-          <span v-if="userStore.unreadCount > 0" class="badge">{{ userStore.unreadCount }}</span>
+          <span v-if="userStore.unreadCount > 0" class="badge"></span>
         </router-link>
         <router-link to="/profile" class="nav-user">{{ userStore.userInfo?.username }}</router-link>
         <button @click="handleLogout" class="btn-logout">退出</button>
@@ -39,6 +39,7 @@ function handleLogout() {
 
 onMounted(() => {
   if (userStore.isLoggedIn) {
+    userStore.restoreSession()
     userStore.fetchUnreadCount()
   }
 })
@@ -89,13 +90,18 @@ onMounted(() => {
   color: #333;
 }
 
+.nav-notification {
+  position: relative;
+}
+
 .badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  width: 8px;
+  height: 8px;
   background: #e74c3c;
-  color: #fff;
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  margin-left: 4px;
+  border-radius: 50%;
 }
 
 .btn-logout {
