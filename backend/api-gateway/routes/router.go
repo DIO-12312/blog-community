@@ -85,6 +85,7 @@ func setupPrivateRoutes(router *gin.RouterGroup) {
 	router.PUT("/api/articles/:id", proxyTo("article"))
 	router.DELETE("/api/articles/:id", proxyTo("article"))
 	router.POST("/api/articles/:id/publish", proxyTo("article"))
+	router.GET("/api/articles/my", proxyTo("article"))
 
 	// 评论相关
 	router.POST("/api/articles/:id/comments", proxyTo("interaction"))
