@@ -13,7 +13,7 @@
           通知
           <span v-if="userStore.unreadCount > 0" class="badge">{{ userStore.unreadCount }}</span>
         </router-link>
-        <span class="nav-user">{{ userStore.userInfo?.username }}</span>
+        <router-link to="/profile" class="nav-user">{{ userStore.userInfo?.username }}</router-link>
         <button @click="handleLogout" class="btn-logout">退出</button>
       </template>
       <template v-else>
