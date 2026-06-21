@@ -81,6 +81,7 @@ func main() {
 	router.PUT("/api/articles/:id", h.EditArticle)
 	router.POST("/api/articles/:id/publish", h.PublishArticle)
 	router.DELETE("/api/articles/:id", h.DeleteArticle)
+	router.GET("/api/articles/my", h.ListMyArticles)
 
 	// 管理员路由
 	router.GET("/api/admin/articles", h.ListAllArticles)
