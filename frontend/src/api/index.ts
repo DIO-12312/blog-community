@@ -49,10 +49,10 @@ export const articleApi = {
   getDetail(id: string) {
     return api.get(`/articles/${id}`)
   },
-  create(data: { title: string; content: string; category_id: string }) {
+  create(data: { title: string; content: string; category?: string }) {
     return api.post('/articles', data)
   },
-  update(id: string, data: { title: string; content: string }) {
+  update(id: string, data: { title: string; content: string; category?: string }) {
     return api.put(`/articles/${id}`, data)
   },
   delete(id: string) {

@@ -12,11 +12,11 @@
         />
       </div>
       <div class="form-group">
-        <label>分类 ID</label>
+        <label>分类</label>
         <input
-          v-model="categoryId"
+          v-model="category"
           type="text"
-          placeholder="请输入分类 ID"
+          placeholder="请输入分类"
         />
       </div>
       <div class="form-group">
@@ -84,7 +84,7 @@ const router = useRouter()
 const isEdit = ref(false)
 const title = ref('')
 const content = ref('')
-const categoryId = ref('')
+const category = ref('')
 const error = ref('')
 const submitting = ref(false)
 
@@ -128,7 +128,7 @@ onMounted(async () => {
       const res: any = await articleApi.getDetail(editId)
       title.value = res.data.title
       content.value = res.data.content
-      categoryId.value = res.data.category_id || ''
+      category.value = res.data.category || ''
       reviewStatus.value = res.data.status
       await fetchReviewInfo()
     } catch {
@@ -146,12 +146,13 @@ async function handleSaveDraft() {
       await articleApi.update(editId, {
         title: title.value,
         content: content.value,
+        category: category.value,
       })
     } else {
       const res: any = await articleApi.create({
         title: title.value,
         content: content.value,
-        category_id: categoryId.value,
+        category: category.value,
       })
       router.push(`/editor/${res.data.id}`)
     }
@@ -171,6 +172,7 @@ async function handleSubmitForReview() {
       await articleApi.update(editId, {
         title: title.value,
         content: content.value,
+        category: category.value,
       })
       await articleApi.submitReview(editId)
       reviewStatus.value = 'pending_review'
@@ -178,7 +180,7 @@ async function handleSubmitForReview() {
       const res: any = await articleApi.create({
         title: title.value,
         content: content.value,
-        category_id: categoryId.value,
+        category: category.value,
       })
       await articleApi.submitReview(res.data.id)
       router.push(`/editor/${res.data.id}`)
