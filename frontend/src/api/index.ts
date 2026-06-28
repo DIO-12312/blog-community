@@ -52,6 +52,12 @@ export const articleApi = {
   create(data: { title: string; content: string; category?: string }) {
     return api.post('/articles', data)
   },
+  getDraft() {
+    return api.get('/articles/draft')
+  },
+  saveDraft(data: { title: string; content: string; category?: string }) {
+    return api.put('/articles/draft', data)
+  },
   update(id: string, data: { title: string; content: string; category?: string }) {
     return api.put(`/articles/${id}`, data)
   },

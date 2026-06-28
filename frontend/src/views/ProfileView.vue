@@ -43,11 +43,6 @@
         </div>
         <div class="item-actions">
           <button
-            v-if="article.status === 'draft'"
-            class="btn-edit"
-            @click.stop="goToEditor(article.id)"
-          >编辑</button>
-          <button
             v-if="article.status === 'published'"
             class="btn-view"
             @click.stop="goToArticle(article)"
@@ -57,11 +52,6 @@
             class="btn-pending"
             disabled
           >审核中</button>
-          <button
-            v-if="article.status === 'draft'"
-            class="btn-delete"
-            @click.stop="handleDelete(article.id)"
-          >删除</button>
         </div>
       </div>
     </div>
@@ -95,16 +85,13 @@ const currentTab = ref('published')
 const tabs = computed(() => [
   { key: 'published', label: '已发布', count: publishedArticles.value.length },
   { key: 'pending_review', label: '待审核', count: pendingArticles.value.length },
-  { key: 'draft', label: '草稿', count: drafts.value.length },
 ])
 
-const drafts = computed(() => articles.value.filter(a => a.status === 'draft'))
 const pendingArticles = computed(() => articles.value.filter(a => a.status === 'pending_review'))
 const publishedArticles = computed(() => articles.value.filter(a => a.status === 'published'))
 
 const currentArticles = computed(() => {
   switch (currentTab.value) {
-    case 'draft': return drafts.value
     case 'pending_review': return pendingArticles.value
     default: return publishedArticles.value
   }
@@ -129,15 +116,7 @@ function formatDate(dateStr: string) {
 }
 
 function goToArticle(article: any) {
-  if (article.status === 'draft') {
-    router.push(`/editor/${article.id}`)
-  } else {
-    router.push(`/article/${article.id}`)
-  }
-}
-
-function goToEditor(id: string) {
-  router.push(`/editor/${id}`)
+  router.push(`/article/${article.id}`)
 }
 
 async function handleDelete(id: string) {

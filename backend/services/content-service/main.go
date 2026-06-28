@@ -78,6 +78,8 @@ func main() {
 
 	// 需要认证的路由
 	router.POST("/api/articles", h.CreateArticle)
+	router.GET("/api/articles/draft", h.GetDraft)
+	router.PUT("/api/articles/draft", h.SaveDraft)
 	router.PUT("/api/articles/:id", h.EditArticle)
 	router.POST("/api/articles/:id/publish", h.PublishArticle)
 	router.DELETE("/api/articles/:id", h.DeleteArticle)

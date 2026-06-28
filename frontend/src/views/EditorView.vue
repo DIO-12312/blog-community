@@ -1,6 +1,7 @@
 <template>
   <div class="editor-container">
     <h1>{{ isEdit ? '编辑文章' : '写文章' }}</h1>
+    <div v-if="hasPendingReview && !isEdit" class="pending-banner">存在正在审核的文章，审核完成前无法编写新文章。</div>
     <form @submit.prevent>
       <div class="form-group">
         <label>标题</label>
@@ -9,6 +10,7 @@
           type="text"
           placeholder="请输入文章标题"
           required
+          :disabled="hasPendingReview && !isEdit"
         />
       </div>
       <div class="form-group">
@@ -17,6 +19,7 @@
           v-model="category"
           type="text"
           placeholder="请输入分类"
+          :disabled="hasPendingReview && !isEdit"
         />
       </div>
       <div class="form-group">
@@ -26,10 +29,15 @@
           rows="16"
           placeholder="支持 Markdown 格式..."
           required
+          :disabled="hasPendingReview && !isEdit"
         ></textarea>
       </div>
       <p v-if="error" class="error">{{ error }}</p>
-      <div class="form-actions">
+      <div v-if="hasPendingReview && !isEdit" class="form-actions"></div>
+      <div v-else-if="reviewStatus === 'pending_review'" class="form-actions">
+        <button type="button" class="btn-reviewing" disabled>正在审核</button>
+      </div>
+      <div v-else class="form-actions">
         <button type="button" class="btn-submit-review" :disabled="submitting" @click="handleSubmitForReview">
           {{ submitting ? '提交中...' : '提交审核' }}
         </button>
@@ -46,17 +54,6 @@
         <span v-else-if="reviewStatus === 'published'">已通过审核并发布</span>
         <span v-else-if="reviewStatus === 'draft' && reviewHistory.length > 0">已被退回，可修改后重新提交</span>
       </div>
-
-      <!-- 重新审核按钮（驳回后重投） -->
-      <button
-        v-if="reviewStatus === 'draft' && reviewHistory.length > 0"
-        type="button"
-        class="btn-submit-review"
-        :disabled="submittingReview"
-        @click="handleResubmitReview"
-      >
-        {{ submittingReview ? '提交中...' : '重新审核' }}
-      </button>
 
       <!-- 审稿历史 -->
       <div v-if="reviewHistory.length > 0" class="review-history">
@@ -90,7 +87,7 @@ const submitting = ref(false)
 
 const reviewStatus = ref('')
 const reviewHistory = ref<any[]>([])
-const submittingReview = ref(false)
+const hasPendingReview = ref(false)
 
 const editId = (route.params.id as string) || ''
 
@@ -100,20 +97,6 @@ async function fetchReviewInfo() {
     const res: any = await articleApi.getReviewHistory(editId)
     reviewHistory.value = res.data || []
   } catch { /* 忽略 */ }
-}
-
-// 重新审核（驳回后重投，仅调用审稿 API）
-async function handleResubmitReview() {
-  if (!confirm('确认重新提交审核？提交后将无法编辑。')) return
-  submittingReview.value = true
-  try {
-    await articleApi.submitReview(editId)
-    reviewStatus.value = 'pending_review'
-  } catch (e: any) {
-    error.value = e?.message || '重新审核失败'
-  } finally {
-    submittingReview.value = false
-  }
 }
 
 function formatDate(dateStr: string) {
@@ -126,13 +109,43 @@ onMounted(async () => {
     isEdit.value = true
     try {
       const res: any = await articleApi.getDetail(editId)
+      const status = res.data.status
+
+      // 已通过审核 → 清空编辑器，写新文章
+      if (status === 'published') {
+        title.value = ''
+        content.value = ''
+        category.value = ''
+        isEdit.value = false
+        reviewStatus.value = ''
+        return
+      }
+
       title.value = res.data.title
       content.value = res.data.content
       category.value = res.data.category || ''
-      reviewStatus.value = res.data.status
+      reviewStatus.value = status
       await fetchReviewInfo()
     } catch {
       error.value = '加载文章失败'
+    }
+  } else {
+    // 检查是否有正在审核的文章
+    try {
+      const myArticles: any = await articleApi.getMyArticles(1, 10)
+      hasPendingReview.value = (myArticles.data || []).some((a: any) => a.status === 'pending_review')
+    } catch { /* 忽略 */ }
+
+    // 加载用户的唯一草稿
+    if (!hasPendingReview.value) {
+      try {
+        const res: any = await articleApi.getDraft()
+        if (res.data) {
+          title.value = res.data.title
+          content.value = res.data.content
+          category.value = res.data.category || ''
+        }
+      } catch { /* 无草稿，显示空白编辑器 */ }
     }
   }
 })
@@ -149,12 +162,11 @@ async function handleSaveDraft() {
         category: category.value,
       })
     } else {
-      const res: any = await articleApi.create({
+      await articleApi.saveDraft({
         title: title.value,
         content: content.value,
         category: category.value,
       })
-      router.push(`/editor/${res.data.id}`)
     }
   } catch (e: any) {
     error.value = e.message || '保存失败'
@@ -175,16 +187,15 @@ async function handleSubmitForReview() {
         category: category.value,
       })
       await articleApi.submitReview(editId)
-      reviewStatus.value = 'pending_review'
     } else {
-      const res: any = await articleApi.create({
+      const res: any = await articleApi.saveDraft({
         title: title.value,
         content: content.value,
         category: category.value,
       })
       await articleApi.submitReview(res.data.id)
-      router.push(`/editor/${res.data.id}`)
     }
+    router.push('/submit-success')
   } catch (e: any) {
     error.value = e.message || '提交失败'
   } finally {
@@ -238,6 +249,16 @@ async function handleSubmitForReview() {
   color: #e74c3c;
 }
 
+.pending-banner {
+  padding: 14px 18px;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
@@ -278,6 +299,16 @@ async function handleSubmitForReview() {
 
 .btn-save-draft:disabled {
   opacity: 0.6;
+}
+
+.btn-reviewing {
+  padding: 10px 32px;
+  background: #f0ad4e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: not-allowed;
 }
 
 .review-section {

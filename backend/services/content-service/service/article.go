@@ -36,6 +36,14 @@ func (s *ArticleService) CreateArticle(authorID, title, content, summary, catego
 	if content == "" {
 		return nil, errors.New("内容不能为空")
 	}
+		// 检查是否有正在审核的文章
+		hasPending, err := s.repo.HasPendingReview(authorID)
+		if err != nil {
+			return nil, fmt.Errorf("检查审核状态失败: %w", err)
+		}
+		if hasPending {
+			return nil, errors.New("存在正在审核的文章")
+		}
 
 	// 2. 创建文章实例
 	article := &models.Article{
@@ -210,4 +218,52 @@ func (s *ArticleService) AdminDeleteArticle(ctx context.Context, articleID strin
 // ListMyArticles 列出当前用户的文章
 func (s *ArticleService) ListMyArticles(authorID string, page, size int) ([]models.Article, int64, error) {
 	return s.repo.ListByAuthor(authorID, page, size)
+}
+
+// GetUserDraft 获取用户的唯一草稿
+func (s *ArticleService) GetUserDraft(authorID string) (*models.Article, error) {
+	return s.repo.GetDraftByAuthorID(authorID)
+}
+
+// SaveDraft 保存草稿（有则更新，无则创建）
+func (s *ArticleService) SaveDraft(authorID, title, content, summary, category string) (*models.Article, error) {
+		// 检查是否有正在审核的文章
+		hasPending, err := s.repo.HasPendingReview(authorID)
+		if err != nil {
+			return nil, fmt.Errorf("检查审核状态失败: %w", err)
+		}
+		if hasPending {
+			return nil, errors.New("存在正在审核的文章")
+		}
+	existing, err := s.repo.GetDraftByAuthorID(authorID)
+	if err == nil {
+		// 已有草稿，更新
+		existing.Title = title
+		existing.Content = content
+		existing.Summary = summary
+		existing.Category = category
+		existing.UpdatedAt = time.Now()
+		if err := s.repo.Update(context.Background(), existing); err != nil {
+			return nil, fmt.Errorf("更新草稿失败: %w", err)
+		}
+		return existing, nil
+	}
+
+	// 无草稿，创建新草稿
+	article := &models.Article{
+		BaseModel:    models.BaseModel{CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		AuthorID:     authorID,
+		Title:        title,
+		Content:      content,
+		Summary:      summary,
+		Category:     category,
+		Status:       models.StatusDraft,
+		ViewCount:    0,
+		LikeCount:    0,
+		CommentCount: 0,
+	}
+	if err := s.repo.Create(article); err != nil {
+		return nil, fmt.Errorf("创建草稿失败: %w", err)
+	}
+	return article, nil
 }

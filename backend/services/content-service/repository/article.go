@@ -46,6 +46,26 @@ func (r *ArticleRepository) GetByID(ctx context.Context, id string) (*models.Art
 	)
 }
 
+// GetDraftByAuthorID 获取用户的唯一草稿
+func (r *ArticleRepository) GetDraftByAuthorID(authorID string) (*models.Article, error) {
+	var article models.Article
+	err := r.db.Where("author_id = ? AND status = ?", authorID, models.StatusDraft).
+		Order("updated_at DESC").First(&article).Error
+	if err != nil {
+		return nil, err
+	}
+	return &article, nil
+}
+
+// HasPendingReview 检查用户是否有正在审核的文章
+func (r *ArticleRepository) HasPendingReview(authorID string) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Article{}).
+		Where("author_id = ? AND status = ?", authorID, models.StatusPendingReview).
+		Count(&count).Error
+	return count > 0, err
+}
+
 // GetByIDUnscoped 获取文章（包括已删除）(带缓存)
 func (r *ArticleRepository) GetByIDUnscoped(ctx context.Context, id string) (*models.Article, error) {
 	return cache.FetchOrCache(ctx, r.redis, r.db, r.group,

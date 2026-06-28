@@ -184,6 +184,52 @@ func (h *ArticleHandler) ListMyArticles(c *gin.Context) {
 	utils.Paginated(c, articles, "获取成功", total, page, size)
 }
 
+// GetDraft GET /api/articles/draft — 获取用户的唯一草稿
+func (h *ArticleHandler) GetDraft(c *gin.Context) {
+	authorID := c.GetHeader("X-User-ID")
+	if authorID == "" {
+		utils.Error(c, http.StatusUnauthorized, "缺少用户身份")
+		return
+	}
+
+	article, err := h.service.GetUserDraft(authorID)
+	if err != nil {
+		utils.Error(c, http.StatusNotFound, "暂无草稿")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "获取成功", article)
+}
+
+// SaveDraft PUT /api/articles/draft — 保存/更新草稿
+func (h *ArticleHandler) SaveDraft(c *gin.Context) {
+	authorID := c.GetHeader("X-User-ID")
+	if authorID == "" {
+		utils.Error(c, http.StatusUnauthorized, "缺少用户身份")
+		return
+	}
+
+	var req struct {
+		Title    string `json:"title" binding:"required"`
+		Content  string `json:"content" binding:"required"`
+		Summary  string `json:"summary"`
+		Category string `json:"category"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c, http.StatusBadRequest, "参数错误")
+		return
+	}
+
+	article, err := h.service.SaveDraft(authorID, req.Title, req.Content, req.Summary, req.Category)
+	if err != nil {
+		utils.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "保存成功", article)
+}
+
 // parsePagination 解析分页参数
 func parsePagination(c *gin.Context) (int, int) {
 	page := 1

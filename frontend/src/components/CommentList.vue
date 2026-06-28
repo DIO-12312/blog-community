@@ -24,7 +24,7 @@
       <div v-for="comment in comments" :key="comment.id" class="comment-item">
         <div class="comment-header">
           <span class="comment-author">{{ comment.username }}</span>
-          <span class="comment-time">{{ comment.created_at }}</span>
+          <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
         </div>
         <div class="comment-content">{{ comment.content }}</div>
         <div class="comment-actions">
@@ -65,7 +65,7 @@
           <div v-for="child in comment.children" :key="child.id" class="comment-item child">
             <div class="comment-header">
               <span class="comment-author">{{ child.username }}</span>
-              <span class="comment-time">{{ child.created_at }}</span>
+              <span class="comment-time">{{ formatDate(child.created_at) }}</span>
             </div>
             <div class="comment-content">{{ child.content }}</div>
             <button
@@ -100,6 +100,11 @@ const newComment = ref('')
 const submitting = ref(false)
 const replyTarget = ref('')
 const replyContent = ref('')
+
+function formatDate(dateStr: string) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleString('zh-CN')
+}
 
 async function fetchComments() {
   loading.value = true

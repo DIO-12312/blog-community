@@ -3,7 +3,7 @@
     <h1>{{ article.title }}</h1>
     <div class="meta">
       <span>{{ article.username }}</span>
-      <span>{{ article.created_at }}</span>
+      <span>{{ formatDate(article.created_at) }}</span>
       <span>{{ article.view_count }} 阅读</span>
     </div>
 
@@ -55,6 +55,11 @@ const renderedContent = computed(() => {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/`(.*?)`/g, '<code>$1</code>')
 })
+
+function formatDate(dateStr: string) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleString('zh-CN')
+}
 
 async function fetchArticle() {
   const res: any = await articleApi.getDetail(articleId)

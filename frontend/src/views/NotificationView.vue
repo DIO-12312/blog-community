@@ -12,6 +12,7 @@
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
+    <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else-if="notifications.length === 0" class="empty">暂无通知</div>
     <div v-else class="notification-list">
       <div
@@ -23,7 +24,7 @@
       >
         <div class="notification-content">
           <p>{{ item.content }}</p>
-          <span class="time">{{ item.created_at }}</span>
+          <span class="time">{{ formatDate(item.created_at) }}</span>
         </div>
         <button
           v-if="!item.is_read"
@@ -48,12 +49,19 @@ const userStore = useUserStore()
 
 const notifications = ref<any[]>([])
 const loading = ref(false)
+const error = ref('')
 
 async function fetchNotifications() {
   loading.value = true
+  error.value = ''
   try {
     const res: any = await notificationApi.getList()
     notifications.value = res.data || []
+  } catch (e: any) {
+    // 401 已由拦截器统一处理（清空登录状态 + 跳转）
+    if (e?.code !== 401) {
+      error.value = '加载失败，请稍后重试'
+    }
   } finally {
     loading.value = false
   }
@@ -82,7 +90,16 @@ async function handleMarkAllRead() {
   }
 }
 
+function formatDate(dateStr: string) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleString('zh-CN')
+}
+
 function handleClick(item: any) {
+  if (!item.is_read) {
+    handleMarkRead(item.id)
+  }
+
   const sourceId = item.source_id
   if (!sourceId) return
 

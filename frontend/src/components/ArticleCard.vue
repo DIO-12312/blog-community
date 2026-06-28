@@ -4,7 +4,7 @@
     <p class="card-summary">{{ summary }}</p>
     <div class="card-meta">
       <span>{{ article.username }}</span>
-      <span>{{ article.created_at }}</span>
+      <span>{{ formatDate(article.created_at) }}</span>
       <span>{{ article.view_count || 0 }} 阅读</span>
       <span>{{ article.comment_count || 0 }} 评论</span>
       <span>{{ article.like_count || 0 }} 赞</span>
@@ -31,6 +31,11 @@ const props = defineProps<{
 defineEmits<{
   click: []
 }>()
+
+function formatDate(dateStr: string) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleString('zh-CN')
+}
 
 const summary = computed(() => {
   const text = props.article.content || ''
