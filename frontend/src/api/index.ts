@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
+import router from '@/router'
 
 const api = axios.create({
   baseURL: '/api',
@@ -19,7 +21,8 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
+      useUserStore().logout()
+      router.push('/login')
     }
     return Promise.reject(error.response?.data || error)
   }
